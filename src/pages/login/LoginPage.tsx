@@ -7,14 +7,16 @@ import {useNavigate} from "react-router-dom";
 
 const LoginPage = () => {
     const [code, setCode] = useState('');
+    const [error, setError] = useState('');
     const navigate = useNavigate();
 
     // Todo: 관리자 코드 입력 db 연동
     const handleLogin = () => {
         if (code === 'asdf123!') {
+            setError('');
             navigate('/dashboard');
         } else {
-            alert('잘못된 관리자 코드입니다.');
+            setError('코드가 확인되지 않습니다. 확인 후 재시도해주세요.');
         }
     };
 
@@ -29,13 +31,20 @@ const LoginPage = () => {
             </div>
             <div className="mt-14 flex w-[700px] h-[100px] items-center justify-between rounded-3xl text-normal border border-midGray bg-white px-10">
                 <input type="text" placeholder="관리자 코드를 입력하세요" className="flex-grow text-2xl bg-transparent focus:outline-none"
-                value={code} onChange={(e) => setCode(e.target.value)}/>
+                value={code} onChange={(e) => {
+                    setCode(e.target.value);
+                    setError('');}}/>
                 <button onClick={handleLogin} className={`w-14 h-14 flex items-center justify-center rounded-full text-white transition-colors duration-200 ${
             code.trim() !== '' ? 'bg-mainRed' : 'bg-midGray'
           }`}>
                     <FaArrowRight size={30} className="text-white" />
                 </button>
             </div>
+            {error && (
+                <p className="mt-3 text-normal text-textGray">
+                    {error}
+                </p>
+            )}
         </div>
 
     )
