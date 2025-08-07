@@ -31,7 +31,7 @@ const Sidebar = () => {
                         className={({ isActive }) =>
                             `flex items-center px-6 py-3 h-16 rounded-2xl text-md transition ${
                                 isActive
-                                    ? 'bg-mainRed text-white font-bold hover:text-white'
+                                    ? 'bg-mainRed text-white font-bold text-lg hover:text-white'
                                     : 'text-lightGray font-medium hover:text-lightGray'
                             }`
                         }
@@ -60,7 +60,7 @@ const Sidebar = () => {
 
 
             <div className="mt-auto px-4 absolute bottom-6">
-                <button className="flex items-center w-full px-4 py-3 text-md font-medium text-gray-600 rounded-lg">
+                <button className="flex items-center w-full px-4 py-3 text-md font-medium text-lightGray rounded-lg">
                     <img src={signout} alt="로그아웃" className="mr-3" />
                     로그아웃
                 </button>
