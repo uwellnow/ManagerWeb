@@ -12,6 +12,7 @@ export default {
         midGray: UWELL_COLOR.midGray,
         mainRed: UWELL_COLOR.mainRed,
         textGray: UWELL_COLOR.textGray,
+        lightGray: UWELL_COLOR.lightGray,
       }
     },
     fontFamily: {
