@@ -17,7 +17,7 @@ const sideItems = [
 const Sidebar = () => {
 
     return (
-        <aside className="w-[345px] bg-white min-h-screen border-none border-gray-200">
+        <aside className="w-80 min-h-screen bg-white border-none border-gray-200">
             <div className="p-6 flex items-center justify-center space-x-4">
                 <img src={uwellnowlogo} alt="uwellnow logo" className="w-8 h-8" />
                 <span className="text-2xl font-semibold">uwellnow admin</span>
