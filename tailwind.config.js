@@ -1,3 +1,5 @@
+import {UWELL_COLOR} from "./src/styles/theme.ts";
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -5,7 +7,12 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        midGray: UWELL_COLOR.midGray,
+        mainRed: UWELL_COLOR.mainRed,
+      }
+    },
     fontFamily: {
       sans: ['Inter', 'sans-serif'],
     },
