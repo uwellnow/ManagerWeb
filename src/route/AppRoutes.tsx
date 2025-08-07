@@ -4,13 +4,13 @@ import LoginPage from "../pages/login/LoginPage.tsx";
 import OrderPage from "../pages/order/OrderPage.tsx";
 import StockPage from "../pages/stock/StockPage.tsx";
 import ErrorPage from "../pages/error/ErrorPage.tsx";
+import MainLayout from "../layout/MainLayout.tsx";
 
 const AppRoutes = () => {
     return createBrowserRouter([
-        {
-            path: '/',
+        {path: '/', element: <LoginPage />, },
+        {path: '/', element: <MainLayout />,
             children: [
-                { index: true, element: <LoginPage />},
                 { path: '/dashboard', element: <DashBoardPage />},
                 { path: '/order', element: <OrderPage />},
                 { path: '/stock', element: <StockPage />},
