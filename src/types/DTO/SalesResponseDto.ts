@@ -10,6 +10,18 @@ export interface SalesResponseDto {
     errorCount: number;
 }
 
+export type SalesDetailKind = | "total" | "day" | "week" | "month" | "error";
+
+export type SalesDetailCardType = {
+    kind: SalesDetailKind;
+    label: string;
+    unit: string;
+    bg: string;
+    iconBg: string;
+    icon: string;
+    getValue: (d: SalesResponseDto) => number;
+}
+
 export interface SalesGraphResponseDto {
     storeName: string;
     updatedAt: string;

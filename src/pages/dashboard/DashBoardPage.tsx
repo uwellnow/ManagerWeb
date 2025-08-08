@@ -1,8 +1,14 @@
+import SalesCardGrid from "./SalesCardGrid.tsx";
+import {mockSalesResponse} from "../../mock/data/sales.ts";
 
 
 const DashBoardPage = () => {
+
+
     return (
-        <div> 대시보드 페이지 </div>
+        <div>
+            <SalesCardGrid sales={mockSalesResponse} isLoading={false} isError={false} />
+        </div>
     );
 };
 
