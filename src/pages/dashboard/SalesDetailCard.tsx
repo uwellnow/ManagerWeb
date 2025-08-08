@@ -26,7 +26,7 @@ const SalesDetailCard = ( { type, data }: SalesDetailCardProps) => {
                 {value.toLocaleString()} <span className="text-xl font-bold">{cfg.unit}</span>
             </div>
 
-            <div className="mt-2 text-slate-700 text-base font-semibold">{cfg.label}</div>
+            <div className="mt-2 text-gray-700 text-base">{cfg.label}</div>
 
         </div>
     )

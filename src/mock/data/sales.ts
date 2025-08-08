@@ -15,9 +15,9 @@ export const mockSalesResponse: SalesResponseDto[] = [
         "storeName": "인트로피트니스",
         "updatedAt": "2025-08-04T20:35:00",
         "totalSales": 4020,
-        "daySales": 403,
+        "daySales": 800,
         "weekSales": 800,
-        "monthSales": 1200,
+        "monthSales": 23,
         "errorCount": 3,
     },
 ]
