@@ -11,7 +11,7 @@ const SalesCard = ({ sale }: SalesCardProps) => {
     return (
         <div className="flex flex-col gap-4 p-8 bg-white rounded-2xl w-fit">
             <div className="flex-col items-center mb-6 ">
-                <h2 className="text-lg mb-1 text-grayBlue font-semibold">{sale.storeName} 판매 데이터</h2>
+                <h2 className="text-xl mb-1 text-grayBlue font-semibold">{sale.storeName} 판매 데이터</h2>
                 <span className="text-sm font-light text-gray-700">
                     판매 요약({new Date(sale.updatedAt).toLocaleString("ko-KR")} updated)
                 </span>

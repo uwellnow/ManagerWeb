@@ -1,7 +1,7 @@
 
 
-export interface stocksSummaryResponseDto {
+export interface StocksSummaryResponseDto {
     storeName: string;
-    productName: string;
-    productStatus: string;
+    productName: string[];
+    productStatus: string[];
 }
