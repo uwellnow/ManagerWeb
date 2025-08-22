@@ -73,9 +73,13 @@ const DashBoardPage = () => {
     }
 
     return (
-        <div className="flex flex-1 gap-6 p-4 items-stretch">
-            <SalesCardGrid sales={salesData} isLoading={salesLoading} isError={salesError} />
-            <StocksSummaryGrid stocks={stocksData} isLoading={stocksLoading} isError={stocksError} />
+        <div className="flex flex-col lg:flex-row flex-1 gap-4 lg:gap-6 p-2 lg:p-4 items-stretch">
+            <div className="w-full lg:w-2/3">
+                <SalesCardGrid sales={salesData} isLoading={salesLoading} isError={salesError} />
+            </div>
+            <div className="w-full lg:w-1/3">
+                <StocksSummaryGrid stocks={stocksData} isLoading={stocksLoading} isError={stocksError} />
+            </div>
         </div>
     );
 };
