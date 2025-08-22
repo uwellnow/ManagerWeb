@@ -113,10 +113,10 @@ const OrderPage = () => {
     }
 
     return (
-        <div className="flex-1 p-6 bg-gray-50">
+        <div className="flex-1 p-6">
             {/* 상단 탭과 엑셀 다운로드 */}
             <div className="flex justify-between items-center mb-6">
-                <div className="flex space-x-1 bg-white rounded-lg p-1">
+                <div className="flex space-x-1 p-1">
                     {stores.map((store) => (
                         <button
                             key={store}
@@ -148,9 +148,9 @@ const OrderPage = () => {
             </div>
 
             {/* 주문 테이블 */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                    <table className="min-w-full">
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">주문</th>
