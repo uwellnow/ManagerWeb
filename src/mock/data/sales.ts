@@ -1,7 +1,7 @@
-import type {SalesGraphResponseDto, SalesResponseDto} from "../../types/DTO/SalesResponseDto.ts";
+import type {SalesGraphResponseDto, SalesData} from "../../types/DTO/SalesResponseDto.ts";
 
 
-export const mockSalesResponse: SalesResponseDto[] = [
+export const mockSalesResponse: SalesData[] = [
     {
         "storeName": "멋짐",
         "updatedAt": "2025-08-08T20:35:00",

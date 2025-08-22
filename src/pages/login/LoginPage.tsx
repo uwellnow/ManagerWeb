@@ -1,5 +1,6 @@
 import uwellnowLogo from '../../assets/uwellnow.svg';
 import { FaArrowRight } from "react-icons/fa6";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import {useState, useEffect} from "react";
 import {useNavigate} from "react-router-dom";
 import { authApi } from '../../api/auth';
@@ -8,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 const LoginPage = () => {
     const [username, setUsername] = useState('admin');
     const [password, setPassword] = useState('2025StrongLife!');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
@@ -19,6 +21,15 @@ const LoginPage = () => {
             navigate('/dashboard');
         }
     }, [isAuthenticated, navigate]);
+
+    // 로그아웃 시 입력 필드 초기화
+    useEffect(() => {
+        if (!isAuthenticated) {
+            setUsername('');
+            setPassword('');
+            setError('');
+        }
+    }, [isAuthenticated]);
 
     const handleLogin = async () => {
         if (!username.trim() || !password.trim()) {
@@ -88,7 +99,7 @@ const LoginPage = () => {
                 {/* Password 입력 필드 */}
                 <div className="flex w-full h-[100px] items-center justify-between rounded-3xl text-normal border border-midGray bg-white px-10">
                     <input 
-                        type="password" 
+                        type={showPassword ? "text" : "password"} 
                         placeholder="비밀번호를 입력하세요" 
                         className="flex-grow text-2xl bg-transparent focus:outline-none"
                         value={password} 
@@ -99,21 +110,30 @@ const LoginPage = () => {
                         onKeyPress={handleKeyPress}
                         disabled={isLoading}
                     />
-                    <button 
-                        onClick={handleLogin} 
-                        disabled={isLoading || !username.trim() || !password.trim()}
-                        className={`w-14 h-14 flex items-center justify-center rounded-full text-white transition-colors duration-200 ${
-                            !isLoading && username.trim() !== '' && password.trim() !== '' 
-                                ? 'bg-mainRed hover:bg-red-700' 
-                                : 'bg-midGray cursor-not-allowed'
-                        }`}
-                    >
-                        {isLoading ? (
-                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                            <FaArrowRight size={30} className="text-white" />
-                        )}
-                    </button>
+                    <div className="flex items-center space-x-2">
+                        <button 
+                            onClick={() => setShowPassword(!showPassword)} 
+                            className="w-12 h-12 flex items-center justify-center rounded-full text-midGray hover:text-mainRed transition-colors duration-200"
+                            type="button"
+                        >
+                            {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+                        </button>
+                        <button 
+                            onClick={handleLogin} 
+                            disabled={isLoading || !username.trim() || !password.trim()}
+                            className={`w-14 h-14 flex items-center justify-center rounded-full text-white transition-colors duration-200 ${
+                                !isLoading && username.trim() !== '' && password.trim() !== '' 
+                                    ? 'bg-mainRed hover:bg-red-700' 
+                                    : 'bg-midGray cursor-not-allowed'
+                            }`}
+                        >
+                            {isLoading ? (
+                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                                <FaArrowRight size={30} className="text-white" />
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
             

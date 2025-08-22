@@ -1,25 +1,27 @@
 
 
-export interface SalesResponseDto {
+export interface SalesData {
     storeName: string;
     updatedAt: string;
     totalSales: number;
     daySales: number;
-    weekSales: number,
+    weekSales: number;
     monthSales: number;
     errorCount: number;
 }
 
+export type SalesResponse = SalesData[];
+
 export type SalesDetailKind = | "total" | "day" | "week" | "month" | "error";
 
-export type SalesDetailCardType = {
+export type SalesDetailCardType<T = SalesData> = {
     kind: SalesDetailKind;
     label: string;
     unit: string;
     bg: string;
     iconBg: string;
     icon: string;
-    getValue: (d: SalesResponseDto) => number;
+    getValue: (d: T) => number;
 }
 
 export interface SalesGraphResponseDto {
