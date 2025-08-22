@@ -12,7 +12,7 @@ const SalesDetailCard = ( { type, data }: SalesDetailCardProps) => {
 
 
     return (
-        <div className={`rounded-2xl w-32 h-32 p-4`} style={{ backgroundColor: cfg.bg }}>
+        <div className={`rounded-2xl w-40 h-40 p-4`} style={{ backgroundColor: cfg.bg }}>
             <div className="flex items-center gap-2 mb-3">
                 <div
                     className="w-7 h-7 rounded-full flex items-center justify-center"
