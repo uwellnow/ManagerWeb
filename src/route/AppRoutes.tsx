@@ -5,7 +5,6 @@ import OrderPage from "../pages/order/OrderPage.tsx";
 import StockPage from "../pages/stock/StockPage.tsx";
 import ErrorPage from "../pages/error/ErrorPage.tsx";
 import MainLayout from "../layout/MainLayout.tsx";
-import PrivateRoute from "../components/PrivateRoute.tsx";
 
 const AppRoutes = () => {
     return createBrowserRouter([
@@ -14,27 +13,15 @@ const AppRoutes = () => {
             children: [
                 { 
                     path: '/dashboard', 
-                    element: (
-                        <PrivateRoute>
-                            <DashBoardPage />
-                        </PrivateRoute>
-                    )
+                    element: <DashBoardPage />
                 },
                 { 
                     path: '/order', 
-                    element: (
-                        <PrivateRoute>
-                            <OrderPage />
-                        </PrivateRoute>
-                    )
+                    element: <OrderPage />
                 },
                 { 
                     path: '/stock', 
-                    element: (
-                        <PrivateRoute>
-                            <StockPage />
-                        </PrivateRoute>
-                    )
+                    element: <StockPage />
                 },
                 { path: '/error', element: <ErrorPage />},
             ]
