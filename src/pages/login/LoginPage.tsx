@@ -20,6 +20,15 @@ const LoginPage = () => {
         }
     }, [isAuthenticated, navigate]);
 
+    // 로그아웃 시 입력 필드 초기화
+    useEffect(() => {
+        if (!isAuthenticated) {
+            setUsername('');
+            setPassword('');
+            setError('');
+        }
+    }, [isAuthenticated]);
+
     const handleLogin = async () => {
         if (!username.trim() || !password.trim()) {
             setError('아이디와 비밀번호를 모두 입력해주세요.');

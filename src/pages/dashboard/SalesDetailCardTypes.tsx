@@ -1,11 +1,11 @@
-import type {SalesDetailCardType, SalesDetailKind} from "../../types/DTO/SalesResponseDto.ts";
+import type { SalesDetailCardType, SalesDetailKind, SalesData } from "../../types/DTO/SalesResponseDto.ts";
 import total from '../../assets/dashboard/totalSales.svg';
 import day from '../../assets/dashboard/daySales.svg';
 import week from '../../assets/dashboard/weekSales.svg';
 import month from '../../assets/dashboard/monthSales.svg';
 import error from '../../assets/dashboard/error.svg';
 
-export const SalesDetailCardTypes: Record<SalesDetailKind, SalesDetailCardType> = {
+export const SalesDetailCardTypes: Record<SalesDetailKind, SalesDetailCardType<SalesData>> = {
     total: {
         kind: "total",
         label: "누적 판매량",

@@ -5,7 +5,8 @@ import stock from '../assets/stock.svg'
 import error from '../assets/error_log.svg'
 import uwellnowlogo from '../../public/uwellnow.svg'
 import signout from '../assets/signout.svg'
-import {NavLink} from "react-router-dom";
+import {NavLink, useNavigate} from "react-router-dom";
+import { useAuth } from '../context/AuthContext';
 
 const sideItems = [
     {label: '대시보드', activeImg: dashboard, inactiveImg: nodashboard, path: '/dashboard'},
@@ -15,6 +16,13 @@ const sideItems = [
 ]
 
 const Sidebar = () => {
+    const { logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
 
     return (
         <aside className="w-80 min-h-screen bg-white border-none border-gray-200">
@@ -58,9 +66,11 @@ const Sidebar = () => {
                 ))}
             </nav>
 
-
             <div className="mt-auto px-4 absolute bottom-6">
-                <button className="flex items-center w-full px-4 py-3 text-md font-medium text-lightGray rounded-lg">
+                <button 
+                    onClick={handleLogout}
+                    className="flex items-center w-full px-4 py-3 text-md font-medium text-lightGray rounded-lg hover:text-red-500 hover:bg-red-50 transition-colors duration-200"
+                >
                     <img src={signout} alt="로그아웃" className="mr-3" />
                     로그아웃
                 </button>
