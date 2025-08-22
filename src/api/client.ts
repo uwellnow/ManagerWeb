@@ -1,7 +1,7 @@
 import { tokenStorage } from './auth';
 
-// 개발 환경에서는 프록시를 사용하고, 프로덕션에서는 실제 URL 사용
-const API_BASE_URL = import.meta.env.DEV ? '/api' : 'https://manage-uwellnow.com/api';
+// Vercel의 프록시를 사용하여 CORS 문제 해결
+const API_BASE_URL = '/api';
 
 interface RequestOptions extends RequestInit {
     requiresAuth?: boolean;
