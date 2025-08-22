@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   console.log('Auth sign-in handler called:', {
     method: req.method,
     body: req.body,

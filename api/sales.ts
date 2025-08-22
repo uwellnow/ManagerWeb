@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   console.log('Sales handler called:', {
     method: req.method,
     headers: req.headers
@@ -20,14 +20,14 @@ export default async function handler(req, res) {
   try {
     console.log('Making request to manage-uwellnow.com/api/sales');
     
-    const headers: Record<string, string> = {
+    const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
 
     // Authorization 헤더가 있으면 추가
     if (req.headers.authorization) {
-      headers.Authorization = req.headers.authorization as string;
+      headers.Authorization = req.headers.authorization;
     }
 
     const response = await fetch('https://manage-uwellnow.com/api/sales', {
