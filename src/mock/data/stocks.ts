@@ -1,6 +1,6 @@
-import type {StocksSummaryResponseDto} from "../../types/DTO/stocksSummaryResponseDto.ts";
+import type {StocksSummaryResponse} from "../../types/DTO/stocksSummaryResponseDto.ts";
 
-export const mockStocksSummaryResponse : StocksSummaryResponseDto[] = [
+export const mockStocksSummaryResponse : StocksSummaryResponse[] = [
     {
         "storeName": "멋짐",
         "productName": ["정수", "얼티밋포텐셜 EAA 사과맛"],
