@@ -2,15 +2,15 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     types: [closed]
 
 jobs:
   deploy:
-    # main 브랜치에 머지된 경우에만 배포
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # main 또는 dev 브랜치에 머지된 경우 배포
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && github.event_name == 'push'
     runs-on: ubuntu-latest
     
     steps:
