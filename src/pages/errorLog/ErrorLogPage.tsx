@@ -2,17 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useDate } from "../../context/DateContext";
-import { ordersApi } from "../../api/orders";
-import type { OrderResponse } from "../../types/DTO/OrderResponseDto";
+import { errorLogsApi } from "../../api/errorLogs";
+import type { ErrorLogItem } from "../../types/DTO/ErrorLogResponseDto";
 
-const OrderPage = () => {
+const ErrorLogPage = () => {
     const { isAuthenticated } = useAuth();
     const { selectedDate } = useDate();
     const navigate = useNavigate();
-    const [orders, setOrders] = useState<OrderResponse>([]);
+    const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
-    const [selectedStore, setSelectedStore] = useState<string>("전체 주문");
+    const [selectedStore, setSelectedStore] = useState<string>("전체 에러");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
@@ -23,49 +23,67 @@ const OrderPage = () => {
     }, [isAuthenticated, navigate]);
 
     useEffect(() => {
-        const fetchOrders = async () => {
+        const fetchErrorLogs = async () => {
             if (!isAuthenticated) return;
             
             try {
                 setIsLoading(true);
                 setIsError(false);
-                const data = await ordersApi.getOrders();
+                const data = await errorLogsApi.getErrorLogs();
                 
-                // 선택된 날짜로 필터링
-                const filteredOrders = data.filter(order => {
-                    const orderDate = new Date(order.order_time).toISOString().split('T')[0];
-                    return orderDate === selectedDate;
+                // 객체를 배열로 변환하고 선택된 날짜로 필터링
+                const errorLogsArray = Object.values(data).filter(log => {
+                    const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+                    return logDate === selectedDate;
                 });
                 
-                setOrders(filteredOrders);
+                setErrorLogs(errorLogsArray);
             } catch (error) {
-                console.error('Failed to fetch orders:', error);
+                console.error('Failed to fetch error logs:', error);
                 setIsError(true);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchOrders();
+        fetchErrorLogs();
     }, [isAuthenticated, selectedDate]);
 
-    // 매장 목록 추출
-    const stores = ["전체 주문", ...Array.from(new Set(orders.map(order => order.store_name)))];
+    // 기기 ID로 매장명 매핑 함수
+    const getStoreNameByMachineId = (machineId: number): string => {
+        switch (machineId) {
+            case 20250000:
+                return '테스트';
+            case 20255621:
+                return '세계대학조정대회';
+            default:
+                return `기기 ${machineId}`;
+        }
+    };
 
-    // 필터링된 주문 데이터
-    const filteredOrders = selectedStore === "전체 주문" 
-        ? orders 
-        : orders.filter(order => order.store_name === selectedStore);
+    // 매장명을 기기 ID로 매핑하여 설정
+    const errorLogsWithMappedStoreName = errorLogs.map(log => ({
+        ...log,
+        store_name: getStoreNameByMachineId(log.machine_id)
+    }));
+
+    // 매장 목록 추출 (매핑된 매장명 기준)
+    const stores = ["전체 에러", ...Array.from(new Set(errorLogsWithMappedStoreName.map(log => log.store_name)))];
+
+    // 필터링된 에러 로그 데이터
+    const filteredErrorLogs = selectedStore === "전체 에러" 
+        ? errorLogsWithMappedStoreName 
+        : errorLogsWithMappedStoreName.filter(log => log.store_name === selectedStore);
 
     // 페이지네이션
-    const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredErrorLogs.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const currentOrders = filteredOrders.slice(startIndex, endIndex);
+    const currentErrorLogs = filteredErrorLogs.slice(startIndex, endIndex);
 
     // 날짜 포맷팅 함수
-    const formatOrderTime = (orderTime: string) => {
-        const date = new Date(orderTime);
+    const formatTimestamp = (timestamp: string) => {
+        const date = new Date(timestamp);
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -75,22 +93,6 @@ const OrderPage = () => {
         const displayHours = hours > 12 ? hours - 12 : hours;
         
         return `${year}.${month}.${day} ${ampm} ${displayHours}시 ${minutes}분`;
-    };
-
-    // 멤버십 사용 이력 계산
-    const getMembershipUsage = (total: number, remain: number) => {
-        const used = total - remain;
-        return `${used}/${total}`;
-    };
-
-    // 운동 시점 색상
-    const getWorkoutTimeColor = (time: string) => {
-        switch (time) {
-            case "운동 중": return "bg-orange-100 text-orange-400 border-none";
-            case "운동 전": return "bg-yellow-100 text-yellow-400 border-none";
-            case "운동 후": return "bg-green-100 text-green-400 border-none";
-            default: return "bg-gray-100 text-gray-400 border-none";
-        }
     };
 
     if (!isAuthenticated) {
@@ -105,7 +107,7 @@ const OrderPage = () => {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="w-8 h-8 border-4 border-mainRed border-t-transparent rounded-full animate-spin"></div>
-                <span className="ml-3 text-gray-600">주문 데이터를 불러오는 중...</span>
+                <span className="ml-3 text-gray-600">에러 로그를 불러오는 중...</span>
             </div>
         );
     }
@@ -115,7 +117,7 @@ const OrderPage = () => {
             <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">
                     <div className="text-red-500 text-lg font-semibold mb-2">데이터 로드 실패</div>
-                    <div className="text-gray-600">주문 데이터를 불러오지 못했습니다. 다시 시도해주세요.</div>
+                    <div className="text-gray-600">에러 로그를 불러오지 못했습니다. 다시 시도해주세요.</div>
                 </div>
             </div>
         );
@@ -151,53 +153,45 @@ const OrderPage = () => {
                 </div>
             </div>
 
-            {/* 주문 요약 */}
+            {/* 에러 로그 요약 */}
             <div className="mb-4">
-                <h2 className="text-base lg:text-lg font-semibold text-gray-900">주문 ({filteredOrders.length})</h2>
+                <h2 className="text-base lg:text-lg font-semibold text-gray-900">에러 로그 ({filteredErrorLogs.length})</h2>
             </div>
 
-            {/* 주문 테이블 */}
+            {/* 에러 로그 테이블 */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제품명</th>
+                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
+                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">기기 ID</th>
                                 <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">매장명</th>
-                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운동 시점</th>
-                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">주문 시간</th>
-                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사용자</th>
-                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">멤버십 사용</th>
-                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">결제 상태</th>
+                                <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">에러 상세</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {currentOrders.map((order, index) => (
+                            {currentErrorLogs.map((log, index) => (
                                 <tr key={index} className="hover:bg-gray-50">
                                     <td className="px-3 lg:px-6 py-4 whitespace-nowrap">
                                         <div className="text-xs lg:text-sm font-medium text-gray-900">
-                                            {order.product_name.replace(/\\n/g, ' ')}
+                                            {log.id}
                                         </div>
                                     </td>
                                     <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-900">
-                                        {order.store_name}
-                                    </td>
-                                    <td className="px-3 lg:px-6 py-4 whitespace-nowrap">
-                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getWorkoutTimeColor(order.product_time)}`}>
-                                            {order.product_time}
-                                        </span>
+                                        {formatTimestamp(log.timestamp)}
                                     </td>
                                     <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-900">
-                                        {formatOrderTime(order.order_time)}
+                                        {log.machine_id}
                                     </td>
                                     <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-900">
-                                        {order.user_name}
+                                        {getStoreNameByMachineId(log.machine_id)}
                                     </td>
-                                    <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-900">
-                                        {getMembershipUsage(order.total_count_at_purchase, order.remain_count_after_purchase)}
-                                    </td>
-                                    <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-900">
-                                        완료
+                                    <td className="px-3 lg:px-6 py-4 text-xs lg:text-sm text-gray-900">
+                                        <div className="max-w-xs truncate" title={log.error_detail}>
+                                            {log.error_detail}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -272,4 +266,4 @@ const OrderPage = () => {
     );
 };
 
-export default OrderPage;
+export default ErrorLogPage;

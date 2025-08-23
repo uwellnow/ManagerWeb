@@ -1,0 +1,19 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[context.production]
+  command = "npm run build"
+  
+[context.deploy-preview]
+  command = "echo 'Preview builds disabled for non-main branches'"
+  
+# main 브랜치에서만 자동 배포
+[context.branch-deploy]
+  command = "echo 'Branch deploys disabled'"
+
+# 리다이렉트 설정 (SPA 라우팅)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

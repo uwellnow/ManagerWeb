@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useDate } from "../../context/DateContext";
 import { stocksApi } from "../../api/stocks";
 import type { StockResponse, StockData } from "../../types/DTO/StockResponseDto";
 
 const StockPage = () => {
     const { isAuthenticated } = useAuth();
+    const { selectedDate } = useDate();
     const navigate = useNavigate();
     const [stocks, setStocks] = useState<StockResponse>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -32,7 +34,14 @@ const StockPage = () => {
                 setIsLoading(true);
                 setIsError(false);
                 const data = await stocksApi.getStocks();
-                setStocks(data);
+                
+                // 선택된 날짜로 필터링
+                const filteredStocks = data.filter(stock => {
+                    const stockDate = new Date(stock.updatedAddTime).toISOString().split('T')[0];
+                    return stockDate === selectedDate;
+                });
+                
+                setStocks(filteredStocks);
             } catch (error) {
                 console.error('Failed to fetch stocks:', error);
                 setIsError(true);
@@ -42,7 +51,7 @@ const StockPage = () => {
         };
 
         fetchStocks();
-    }, [isAuthenticated]);
+    }, [isAuthenticated, selectedDate]);
 
     // 매장 목록 추출
     const stores = ["전체 재고", ...Array.from(new Set(stocks.map(stock => stock.storeName)))];

@@ -1,5 +1,6 @@
 import uwellnowlogo from '../../public/uwellnow.svg'
 import { useAuth } from '../context/AuthContext';
+import { useDate } from '../context/DateContext';
 import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
@@ -8,13 +9,17 @@ interface HeaderProps {
 
 const Header = ({ onMenuClick }: HeaderProps) => {
     const { logout } = useAuth();
+    const { selectedDate, setSelectedDate } = useDate();
     const navigate = useNavigate();
     
-    const today = new Date().toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    });
+    const formatDateForDisplay = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+    };
 
     const handleLogout = () => {
         logout();
@@ -33,8 +38,29 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                 </svg>
             </button>
 
-            {/* 날짜 */}
-            <div className="text-grayBlue font-semibold text-lg lg:text-2xl">{today}</div>
+            {/* 날짜 선택기 */}
+            <div className="flex items-center space-x-2">
+                <span className="text-grayBlue font-semibold text-lg lg:text-2xl">
+                    {formatDateForDisplay(selectedDate)}
+                </span>
+                <div className="relative">
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        max={new Date().toISOString().split('T')[0]}
+                    />
+                    <svg 
+                        className="w-5 h-5 lg:w-6 lg:h-6 text-grayBlue cursor-pointer" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+            </div>
             
             {/* 사용자 정보 */}
             <div className="flex items-center space-x-2 lg:space-x-4">
