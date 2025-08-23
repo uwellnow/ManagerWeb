@@ -4,6 +4,7 @@ import LoginPage from "../pages/login/LoginPage.tsx";
 import OrderPage from "../pages/order/OrderPage.tsx";
 import StockPage from "../pages/stock/StockPage.tsx";
 import ErrorPage from "../pages/error/ErrorPage.tsx";
+import ErrorLogPage from "../pages/errorLog/ErrorLogPage.tsx";
 import MainLayout from "../layout/MainLayout.tsx";
 
 const AppRoutes = () => {
@@ -22,6 +23,10 @@ const AppRoutes = () => {
                 { 
                     path: '/stock', 
                     element: <StockPage />
+                },
+                { 
+                    path: '/error-log', 
+                    element: <ErrorLogPage />
                 },
                 { path: '/error', element: <ErrorPage />},
             ]

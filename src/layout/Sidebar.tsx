@@ -16,7 +16,7 @@ const sideItems = [
     {label: '대시보드', activeImg: dashboard, inactiveImg: nodashboard, path: '/dashboard'},
     {label: '주문', img: order, path: '/order'},
     {label: '재고', img: stock, path: '/stock'},
-    {label: '오류 로그', img: error, path: '/error'},
+    {label: '에러 로그', img: error, path: '/error-log'},
 ]
 
 const Sidebar = ({ onClose }: SidebarProps) => {
