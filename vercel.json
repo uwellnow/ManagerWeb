@@ -1,18 +1,18 @@
 {
-  "git": {
-    "deploymentEnabled": {
-      "main": true,
-      "dev": false,
-      "feature/*": false
-    }
-  },
-  "github": {
-    "silent": true
-  },
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/api/auth/sign-in",
+      "destination": "/api/auth/sign-in"
+    },
+    {
+      "source": "/api/sales",
+      "destination": "/api/sales"
+    },
+    {
+      "source": "/api/stocks/summary",
+      "destination": "/api/stocks/summary"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://manage-uwellnow.com/api/:path*"
     }
-  ]
-}
