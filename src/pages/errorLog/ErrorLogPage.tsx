@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useDate } from "../../context/DateContext";
 import { errorLogsApi } from "../../api/errorLogs";
 import type { ErrorLogItem } from "../../types/DTO/ErrorLogResponseDto";
 
 const ErrorLogPage = () => {
     const { isAuthenticated } = useAuth();
-    const { selectedDate } = useDate();
     const navigate = useNavigate();
     const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -31,12 +29,12 @@ const ErrorLogPage = () => {
                 setIsError(false);
                 const data = await errorLogsApi.getErrorLogs();
                 
-                // 객체를 배열로 변환하고 선택된 날짜로 필터링
+                // 날짜 필터링 제거 - 전체 데이터 사용, '테스트용' 제외
                 const errorLogsArray = Object.values(data).filter(log => {
-                    const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-                    return logDate === selectedDate;
+                    // 기기 ID로 매장명 매핑하여 '테스트용' 제외
+                    const storeName = getStoreNameByMachineId(log.machine_id);
+                    return storeName !== '테스트용';
                 });
-                
                 setErrorLogs(errorLogsArray);
             } catch (error) {
                 console.error('Failed to fetch error logs:', error);
@@ -47,7 +45,7 @@ const ErrorLogPage = () => {
         };
 
         fetchErrorLogs();
-    }, [isAuthenticated, selectedDate]);
+    }, [isAuthenticated]); // selectedDate 의존성 제거
 
     // 기기 ID로 매장명 매핑 함수
     const getStoreNameByMachineId = (machineId: number): string => {

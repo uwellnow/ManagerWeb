@@ -1,13 +1,15 @@
 import type { StocksSummaryResponse } from "../../types/DTO/stocksSummaryResponseDto.ts";
+import type { SalesResponse } from "../../types/DTO/SalesResponseDto.ts";
 import StocksSummary from "./StocksSummary.tsx";
 
 interface Props {
     stocks?: StocksSummaryResponse;
+    sales?: SalesResponse;
     isLoading: boolean;
     isError: boolean;
 }
 
-const StocksSummaryGrid = ({stocks, isLoading, isError}: Props) => {
+const StocksSummaryGrid = ({stocks, sales, isLoading, isError}: Props) => {
     if (isLoading) {
         return (
             <section className="flex flex-1 flex-col justify-between gap-4 lg:gap-8 w-full">
@@ -45,9 +47,25 @@ const StocksSummaryGrid = ({stocks, isLoading, isError}: Props) => {
         );
     }
 
+    // 판매 데이터의 storeName 순서대로 재고 데이터 정렬
+    const sortedStocks = sales ? 
+        Object.entries(stocks).sort((a, b) => {
+            const salesStoreNames = sales.map(sale => sale.storeName);
+            const aIndex = salesStoreNames.indexOf(a[0]);
+            const bIndex = salesStoreNames.indexOf(b[0]);
+            
+            // 판매 데이터에 없는 storeName은 맨 뒤로
+            if (aIndex === -1 && bIndex === -1) return 0;
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+            
+            return aIndex - bIndex;
+        }) : 
+        Object.entries(stocks);
+
     return(
         <section className="flex flex-1 flex-col justify-between gap-4 lg:gap-8 w-full">
-            {Object.entries(stocks).map(([storeName, products]) => (
+            {sortedStocks.map(([storeName, products]) => (
                 <StocksSummary
                     key={storeName}
                     storeName={storeName}

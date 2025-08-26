@@ -3,7 +3,6 @@ import StocksSummaryGrid from "./StocksSummaryGrid.tsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useDate } from "../../context/DateContext";
 import { salesApi } from "../../api/sales";
 import { stocksApi } from "../../api/stocks";
 import type { SalesResponse } from "../../types/DTO/SalesResponseDto.ts";
@@ -11,7 +10,6 @@ import type { StocksSummaryResponse } from "../../types/DTO/stocksSummaryRespons
 
 const DashBoardPage = () => {
     const { isAuthenticated } = useAuth();
-    const { selectedDate } = useDate();
     const navigate = useNavigate();
     const [salesData, setSalesData] = useState<SalesResponse>([]);
     const [stocksData, setStocksData] = useState<StocksSummaryResponse>({});
@@ -35,13 +33,9 @@ const DashBoardPage = () => {
                 setSalesError(false);
                 const data = await salesApi.getSales();
                 
-                // 선택된 날짜로 필터링
-                const filteredSalesData = data.filter(sale => {
-                    const saleDate = new Date(sale.updatedAt).toISOString().split('T')[0];
-                    return saleDate === selectedDate;
-                });
-                
-                setSalesData(filteredSalesData);
+                // 날짜 필터링 제거 - 전체 데이터 사용, '테스트용' 제외
+                const filteredData = data.filter(sale => sale.storeName !== '테스트용');
+                setSalesData(filteredData);
             } catch (error) {
                 console.error('Failed to fetch sales data:', error);
                 setSalesError(true);
@@ -51,7 +45,7 @@ const DashBoardPage = () => {
         };
 
         fetchSalesData();
-    }, [isAuthenticated, selectedDate]);
+    }, [isAuthenticated]); // selectedDate 의존성 제거
 
     useEffect(() => {
         const fetchStocksData = async () => {
@@ -61,7 +55,19 @@ const DashBoardPage = () => {
                 setStocksLoading(true);
                 setStocksError(false);
                 const data = await stocksApi.getStocksSummary();
-                setStocksData(data);
+                
+                console.log('Original stocks data:', data); // 원본 데이터 확인
+                console.log('Store names:', Object.keys(data)); // storeName 목록 확인
+                
+                // '테스트용' 제외
+                const filteredData = Object.fromEntries(
+                    Object.entries(data).filter(([storeName]) => {
+                        console.log('Checking storeName:', storeName, 'isTest:', storeName === '테스트용');
+                        return storeName !== '테스트용';
+                    })
+                );
+                console.log('Filtered stocks data:', filteredData); // 필터링된 데이터 확인
+                setStocksData(filteredData);
             } catch (error) {
                 console.error('Failed to fetch stocks data:', error);
                 setStocksError(true);
@@ -71,7 +77,7 @@ const DashBoardPage = () => {
         };
 
         fetchStocksData();
-    }, [isAuthenticated, selectedDate]);
+    }, [isAuthenticated]); // selectedDate 의존성 제거
 
     if (!isAuthenticated) {
         return (
@@ -87,7 +93,12 @@ const DashBoardPage = () => {
                 <SalesCardGrid sales={salesData} isLoading={salesLoading} isError={salesError} />
             </div>
             <div className="w-full lg:w-1/3">
-                <StocksSummaryGrid stocks={stocksData} isLoading={stocksLoading} isError={stocksError} />
+                <StocksSummaryGrid 
+                    stocks={stocksData} 
+                    sales={salesData}
+                    isLoading={stocksLoading} 
+                    isError={stocksError} 
+                />
             </div>
         </div>
     );

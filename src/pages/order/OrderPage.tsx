@@ -12,7 +12,7 @@ const OrderPage = () => {
     const [orders, setOrders] = useState<OrderResponse>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
-    const [selectedStore, setSelectedStore] = useState<string>("전체 주문");
+    const [selectedStore, setSelectedStore] = useState<string>("오늘의 전체 주문");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
@@ -31,13 +31,32 @@ const OrderPage = () => {
                 setIsError(false);
                 const data = await ordersApi.getOrders();
                 
-                // 선택된 날짜로 필터링
-                const filteredOrders = data.filter(order => {
-                    const orderDate = new Date(order.order_time).toISOString().split('T')[0];
-                    return orderDate === selectedDate;
-                });
+                console.log('Original orders data:', data); // 원본 데이터 확인
+                console.log('All store names:', [...new Set(data.map(order => order.store_name))]); // 모든 매장명 확인
                 
-                setOrders(filteredOrders);
+                // '테스트용' 제외
+                const filteredData = data.filter(order => order.store_name !== '테스트용');
+                console.log('After filtering test data:', filteredData); // 테스트용 제거 후 데이터
+                console.log('Store names after filtering:', [...new Set(filteredData.map(order => order.store_name))]); // 필터링 후 매장명
+                
+                // '모든 전체 주문'이 선택된 경우 날짜 필터링 제거
+                if (selectedStore === "모든 전체 주문") {
+                    console.log('Setting all orders (no date filter)');
+                    setOrders(filteredData);
+                } else {
+                    // 선택된 날짜로 필터링
+                    const dateFilteredOrders = filteredData.filter(order => {
+                        const orderDate = new Date(order.order_time).toISOString().split('T')[0];
+                        const matchesDate = orderDate === selectedDate;
+                        if (order.store_name === '세계대학조정대회') {
+                            console.log('세계대학조정대회 order:', order, 'date:', orderDate, 'selectedDate:', selectedDate, 'matches:', matchesDate);
+                        }
+                        return matchesDate;
+                    });
+                    console.log('Date filtered orders:', dateFilteredOrders); // 날짜 필터링 후 데이터
+                    console.log('Store names after date filtering:', [...new Set(dateFilteredOrders.map(order => order.store_name))]); // 날짜 필터링 후 매장명
+                    setOrders(dateFilteredOrders);
+                }
             } catch (error) {
                 console.error('Failed to fetch orders:', error);
                 setIsError(true);
@@ -47,15 +66,17 @@ const OrderPage = () => {
         };
 
         fetchOrders();
-    }, [isAuthenticated, selectedDate]);
+    }, [isAuthenticated, selectedDate, selectedStore]); // selectedStore 의존성 추가
 
     // 매장 목록 추출
-    const stores = ["전체 주문", ...Array.from(new Set(orders.map(order => order.store_name)))];
+    const stores = ["모든 전체 주문", "오늘의 전체 주문", ...Array.from(new Set(orders.map(order => order.store_name)))];
 
     // 필터링된 주문 데이터
-    const filteredOrders = selectedStore === "전체 주문" 
-        ? orders 
-        : orders.filter(order => order.store_name === selectedStore);
+    const filteredOrders = selectedStore === "모든 전체 주문" 
+        ? orders  // 모든 전체 주문: 매장명 필터링 없음
+        : selectedStore === "오늘의 전체 주문" 
+            ? orders  // 오늘의 전체 주문: 매장명 필터링 없음
+            : orders.filter(order => order.store_name === selectedStore); // 특정 매장: 매장명 필터링
 
     // 페이지네이션
     const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
