@@ -35,13 +35,16 @@ const DashBoardPage = () => {
                 setSalesError(false);
                 const data = await salesApi.getSales();
                 
+                // '테스트용' 제외
+                const filteredSalesData = data.filter(sale => sale.storeName !== '테스트용');
+                
                 // 선택된 날짜로 필터링
-                const filteredSalesData = data.filter(sale => {
+                const dateFilteredSalesData = filteredSalesData.filter(sale => {
                     const saleDate = new Date(sale.updatedAt).toISOString().split('T')[0];
                     return saleDate === selectedDate;
                 });
                 
-                setSalesData(filteredSalesData);
+                setSalesData(dateFilteredSalesData);
             } catch (error) {
                 console.error('Failed to fetch sales data:', error);
                 setSalesError(true);
@@ -61,7 +64,17 @@ const DashBoardPage = () => {
                 setStocksLoading(true);
                 setStocksError(false);
                 const data = await stocksApi.getStocksSummary();
-                setStocksData(data);
+                console.log('Original stocks data:', data); // 원본 데이터 확인
+                console.log('Store names:', Object.keys(data)); // storeName 목록 확인
+                // '테스트용' 제외
+                const filteredData = Object.fromEntries(
+                    Object.entries(data).filter(([storeName]) => {
+                        console.log('Checking storeName:', storeName, 'isTest:', storeName === '테스트용');
+                        return storeName !== '테스트용';
+                    })
+                );
+                console.log('Filtered stocks data:', filteredData); // 필터링된 데이터 확인
+                setStocksData(filteredData);
             } catch (error) {
                 console.error('Failed to fetch stocks data:', error);
                 setStocksError(true);
@@ -71,7 +84,7 @@ const DashBoardPage = () => {
         };
 
         fetchStocksData();
-    }, [isAuthenticated, selectedDate]);
+    }, [isAuthenticated]); // selectedDate 의존성 제거
 
     if (!isAuthenticated) {
         return (
@@ -82,12 +95,20 @@ const DashBoardPage = () => {
     }
 
     return (
-        <div className="flex flex-col lg:flex-row flex-1 gap-4 lg:gap-6 p-2 lg:p-4 items-stretch">
+        <div className="flex flex-col lg:flex-row flex-1 gap-4 sm:gap-6 lg:gap-8 p-3 sm:p-4 lg:p-6 items-stretch">
+            {/* 판매 데이터 섹션 */}
             <div className="w-full lg:w-2/3">
                 <SalesCardGrid sales={salesData} isLoading={salesLoading} isError={salesError} />
             </div>
+            
+            {/* 재고 요약 섹션 */}
             <div className="w-full lg:w-1/3">
-                <StocksSummaryGrid stocks={stocksData} isLoading={stocksLoading} isError={stocksError} />
+                <StocksSummaryGrid 
+                    stocks={stocksData} 
+                    sales={salesData}
+                    isLoading={stocksLoading} 
+                    isError={stocksError} 
+                />
             </div>
         </div>
     );
