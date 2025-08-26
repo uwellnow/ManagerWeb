@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useDate } from "../../context/DateContext";
 import { stocksApi } from "../../api/stocks";
 import type { StockResponse, StockData } from "../../types/DTO/StockResponseDto";
 
 const StockPage = () => {
     const { isAuthenticated } = useAuth();
-    const { selectedDate } = useDate();
     const navigate = useNavigate();
     const [stocks, setStocks] = useState<StockResponse>([]);
     const [isLoading, setIsLoading] = useState(true);

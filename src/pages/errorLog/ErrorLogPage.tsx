@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useDate } from "../../context/DateContext";
 import { errorLogsApi } from "../../api/errorLogs";
 import type { ErrorLogItem } from "../../types/DTO/ErrorLogResponseDto";
 
 const ErrorLogPage = () => {
     const { isAuthenticated } = useAuth();
-    const { selectedDate } = useDate();
     const navigate = useNavigate();
     const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
