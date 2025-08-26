@@ -37,6 +37,7 @@ const StockPage = () => {
                 const filteredStocks = data.filter(stock => stock.storeName !== '테스트용');
                 
                 setStocks(filteredStocks);
+
             } catch (error) {
                 console.error('Failed to fetch stocks:', error);
                 setIsError(true);

@@ -31,6 +31,7 @@ const OrderPage = () => {
                 setIsError(false);
                 const data = await ordersApi.getOrders();
 
+
                 console.log('Original orders data:', data); // Debug log
                 console.log('All store names:', [...new Set(data.map(order => order.store_name))]); // Debug log
 
@@ -42,6 +43,7 @@ const OrderPage = () => {
                 // '모든 전체 주문'이 선택된 경우 날짜 필터링 제거
                 if (selectedStore === "모든 전체 주문") {
                     console.log('Setting all orders (no date filter)'); // Debug log
+
                     setOrders(filteredData);
                 } else {
                     // 선택된 날짜로 필터링
@@ -49,12 +51,14 @@ const OrderPage = () => {
                         const orderDate = new Date(order.order_time).toISOString().split('T')[0];
                         const matchesDate = orderDate === selectedDate;
                         if (order.store_name === '세계대학조정대회') { // Debug log
+
                             console.log('세계대학조정대회 order:', order, 'date:', orderDate, 'selectedDate:', selectedDate, 'matches:', matchesDate);
                         }
                         return matchesDate;
                     });
                     console.log('Date filtered orders:', dateFilteredOrders); // Debug log
                     console.log('Store names after date filtering:', [...new Set(dateFilteredOrders.map(order => order.store_name))]); // Debug log
+
                     setOrders(dateFilteredOrders);
                 }
             } catch (error) {
@@ -72,6 +76,7 @@ const OrderPage = () => {
     const stores = ["모든 전체 주문", "오늘의 전체 주문", ...Array.from(new Set(orders.map(order => order.store_name)))];
 
     // 필터링된 주문 데이터
+
     const filteredOrders = selectedStore === "모든 전체 주문"
         ? orders  // 모든 전체 주문: 매장명 필터링 없음
         : selectedStore === "오늘의 전체 주문"

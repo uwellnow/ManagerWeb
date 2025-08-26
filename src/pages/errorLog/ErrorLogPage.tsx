@@ -28,14 +28,14 @@ const ErrorLogPage = () => {
                 setIsLoading(true);
                 setIsError(false);
                 const data = await errorLogsApi.getErrorLogs();
-                
+               
+
                 // 객체를 배열로 변환하고 '테스트용' 제외
                 const errorLogsArray = Object.values(data).filter(log => {
                     // machine_id로 매장명 확인하여 '테스트용' 제외
                     const storeName = getStoreNameByMachineId(log.machine_id);
                     return storeName !== '테스트';
                 });
-                
                 setErrorLogs(errorLogsArray);
             } catch (error) {
                 console.error('Failed to fetch error logs:', error);

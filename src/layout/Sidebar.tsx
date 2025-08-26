@@ -36,7 +36,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
     };
 
     return (
-        <aside className="w-80 lg:w-80 min-h-screen bg-white border-none border-gray-200 shadow-lg lg:shadow-none">
+        <aside className="w-80 lg:w-80 h-screen bg-white border-none border-gray-200 shadow-lg lg:shadow-none flex flex-col">
             {/* 모바일 헤더 */}
             <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
                 <div className="flex items-center space-x-4">
@@ -59,7 +59,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
                 <span className="text-2xl font-semibold">uwellnow admin</span>
             </div>
 
-            <nav className="mt-4 space-y-2 px-6 lg:px-12">
+            <nav className="mt-4 space-y-2 px-6 lg:px-12 flex-1">
                 {sideItems.map(({ label, path, img, activeImg, inactiveImg }) => (
                     <NavLink
                         key={path}
@@ -96,7 +96,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
                 ))}
             </nav>
 
-            <div className="mt-auto px-4 absolute bottom-6 w-full">
+            <div className="px-4 pb-6">
                 <button 
                     onClick={handleLogout}
                     className="flex items-center w-full px-4 py-3 text-sm lg:text-md font-medium text-lightGray rounded-lg hover:text-red-500 hover:bg-red-50 transition-colors duration-200"

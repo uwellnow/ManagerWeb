@@ -1,5 +1,6 @@
 import type { StocksSummaryResponse } from "../../types/DTO/stocksSummaryResponseDto.ts";
 import type { SalesResponse } from "../../types/DTO/SalesResponseDto.ts"; // Added
+
 import StocksSummary from "./StocksSummary.tsx";
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
     isLoading: boolean;
     isError: boolean;
 }
+
 
 const StocksSummaryGrid = ({stocks, sales, isLoading, isError}: Props) => { // Added sales
     if (isLoading) {
@@ -61,6 +63,7 @@ const StocksSummaryGrid = ({stocks, sales, isLoading, isError}: Props) => { // A
 
             return aIndex - bIndex;
         }) :
+
         Object.entries(stocks);
 
     return(

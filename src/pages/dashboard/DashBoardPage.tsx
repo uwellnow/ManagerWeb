@@ -3,7 +3,6 @@ import StocksSummaryGrid from "./StocksSummaryGrid.tsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useDate } from "../../context/DateContext";
 import { salesApi } from "../../api/sales";
 import { stocksApi } from "../../api/stocks";
 import type { SalesResponse } from "../../types/DTO/SalesResponseDto.ts";
@@ -11,7 +10,6 @@ import type { StocksSummaryResponse } from "../../types/DTO/stocksSummaryRespons
 
 const DashBoardPage = () => {
     const { isAuthenticated } = useAuth();
-    const { selectedDate } = useDate();
     const navigate = useNavigate();
     const [salesData, setSalesData] = useState<SalesResponse>([]);
     const [stocksData, setStocksData] = useState<StocksSummaryResponse>({});
@@ -35,6 +33,7 @@ const DashBoardPage = () => {
                 setSalesError(false);
                 const data = await salesApi.getSales();
                 
+
                 // '테스트용' 제외
                 const filteredSalesData = data.filter(sale => sale.storeName !== '테스트용');
                 
@@ -54,7 +53,7 @@ const DashBoardPage = () => {
         };
 
         fetchSalesData();
-    }, [isAuthenticated, selectedDate]);
+    }, [isAuthenticated]); // selectedDate 의존성 제거
 
     useEffect(() => {
         const fetchStocksData = async () => {
@@ -64,8 +63,10 @@ const DashBoardPage = () => {
                 setStocksLoading(true);
                 setStocksError(false);
                 const data = await stocksApi.getStocksSummary();
+
                 console.log('Original stocks data:', data); // 원본 데이터 확인
                 console.log('Store names:', Object.keys(data)); // storeName 목록 확인
+
                 // '테스트용' 제외
                 const filteredData = Object.fromEntries(
                     Object.entries(data).filter(([storeName]) => {
