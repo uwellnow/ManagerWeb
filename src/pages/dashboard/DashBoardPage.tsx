@@ -3,6 +3,7 @@ import StocksSummaryGrid from "./StocksSummaryGrid.tsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useDate } from "../../context/DateContext";
 import { salesApi } from "../../api/sales";
 import { stocksApi } from "../../api/stocks";
 import type { SalesResponse } from "../../types/DTO/SalesResponseDto.ts";
@@ -10,6 +11,7 @@ import type { StocksSummaryResponse } from "../../types/DTO/stocksSummaryRespons
 
 const DashBoardPage = () => {
     const { isAuthenticated } = useAuth();
+    const { selectedDate } = useDate();
     const navigate = useNavigate();
     const [salesData, setSalesData] = useState<SalesResponse>([]);
     const [stocksData, setStocksData] = useState<StocksSummaryResponse>({});
@@ -33,9 +35,17 @@ const DashBoardPage = () => {
                 setSalesError(false);
                 const data = await salesApi.getSales();
                 
-                // 날짜 필터링 제거 - 전체 데이터 사용, '테스트용' 제외
-                const filteredData = data.filter(sale => sale.storeName !== '테스트용');
-                setSalesData(filteredData);
+
+                // '테스트용' 제외
+                const filteredSalesData = data.filter(sale => sale.storeName !== '테스트용');
+                
+                // 선택된 날짜로 필터링
+                const dateFilteredSalesData = filteredSalesData.filter(sale => {
+                    const saleDate = new Date(sale.updatedAt).toISOString().split('T')[0];
+                    return saleDate === selectedDate;
+                });
+                
+                setSalesData(dateFilteredSalesData);
             } catch (error) {
                 console.error('Failed to fetch sales data:', error);
                 setSalesError(true);
@@ -45,7 +55,7 @@ const DashBoardPage = () => {
         };
 
         fetchSalesData();
-    }, [isAuthenticated]); // selectedDate 의존성 제거
+    }, [isAuthenticated, selectedDate]);
 
     useEffect(() => {
         const fetchStocksData = async () => {
@@ -55,10 +65,10 @@ const DashBoardPage = () => {
                 setStocksLoading(true);
                 setStocksError(false);
                 const data = await stocksApi.getStocksSummary();
-                
+
                 console.log('Original stocks data:', data); // 원본 데이터 확인
                 console.log('Store names:', Object.keys(data)); // storeName 목록 확인
-                
+
                 // '테스트용' 제외
                 const filteredData = Object.fromEntries(
                     Object.entries(data).filter(([storeName]) => {
@@ -88,10 +98,13 @@ const DashBoardPage = () => {
     }
 
     return (
-        <div className="flex flex-col lg:flex-row flex-1 gap-4 lg:gap-6 p-2 lg:p-4 items-stretch">
+        <div className="flex flex-col lg:flex-row flex-1 gap-4 sm:gap-6 lg:gap-8 p-3 sm:p-4 lg:p-6 items-stretch">
+            {/* 판매 데이터 섹션 */}
             <div className="w-full lg:w-2/3">
                 <SalesCardGrid sales={salesData} isLoading={salesLoading} isError={salesError} />
             </div>
+            
+            {/* 재고 요약 섹션 */}
             <div className="w-full lg:w-1/3">
                 <StocksSummaryGrid 
                     stocks={stocksData} 
