@@ -13,7 +13,7 @@ const MainLayout = () => {
 
     return (
         <DateProvider>
-            <div className="flex flex-row min-h-screen">
+            <div className="flex flex-row h-screen">
                 {/* 모바일 오버레이 */}
                 {isSidebarOpen && (
                     <div 
@@ -30,9 +30,9 @@ const MainLayout = () => {
                 </div>
                 
                 {/* 메인 콘텐츠 */}
-                <div className="flex flex-col flex-1 lg:ml-0">
+                <div className="flex flex-col flex-1 lg:ml-0 h-screen overflow-hidden">
                     <Header onMenuClick={toggleSidebar} />
-                    <main className="flex-1 p-4 lg:p-6">
+                    <main className="flex-1 p-4 lg:p-6 overflow-auto">
                         <FullContainer />
                     </main>
                 </div>
