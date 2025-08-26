@@ -3,6 +3,7 @@ import StocksSummaryGrid from "./StocksSummaryGrid.tsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useDate } from "../../context/DateContext";
 import { salesApi } from "../../api/sales";
 import { stocksApi } from "../../api/stocks";
 import type { SalesResponse } from "../../types/DTO/SalesResponseDto.ts";
@@ -10,6 +11,7 @@ import type { StocksSummaryResponse } from "../../types/DTO/stocksSummaryRespons
 
 const DashBoardPage = () => {
     const { isAuthenticated } = useAuth();
+    const { selectedDate } = useDate();
     const navigate = useNavigate();
     const [salesData, setSalesData] = useState<SalesResponse>([]);
     const [stocksData, setStocksData] = useState<StocksSummaryResponse>({});
@@ -53,7 +55,7 @@ const DashBoardPage = () => {
         };
 
         fetchSalesData();
-    }, [isAuthenticated]); // selectedDate 의존성 제거
+    }, [isAuthenticated, selectedDate]);
 
     useEffect(() => {
         const fetchStocksData = async () => {
