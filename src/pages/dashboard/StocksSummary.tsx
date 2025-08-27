@@ -14,7 +14,7 @@ const statusColor: Record<string, string> = {
 
 const StocksSummary = ({storeName, products}: StocksSummaryProps) => {
     return(
-        <div className="h-64 lg:h-72 flex flex-col p-3 lg:p-6 bg-white rounded-xl lg:rounded-2xl">
+        <div className="h-96 lg:h-72 flex flex-col p-3 lg:p-6 bg-white rounded-xl lg:rounded-2xl">
             <div className="flex-col items-center mb-2 lg:mb-3">
                 <h2 className="text-base lg:text-lg mb-1 text-grayBlue font-semibold">{storeName} 재고 요약</h2>
                 <div className="text-sm lg:text-base text-textGray p-1 lg:p-2" >제품명</div>
