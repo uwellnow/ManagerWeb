@@ -10,6 +10,7 @@ const OrderPage = () => {
     const { selectedDate } = useDate();
     const navigate = useNavigate();
     const [orders, setOrders] = useState<OrderResponse>([]);
+    const [allOrders, setAllOrders] = useState<OrderResponse>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
     const [selectedStore, setSelectedStore] = useState<string>("오늘의 전체 주문");
@@ -31,7 +32,6 @@ const OrderPage = () => {
                 setIsError(false);
                 const data = await ordersApi.getOrders();
 
-
                 console.log('Original orders data:', data); // Debug log
                 console.log('All store names:', [...new Set(data.map(order => order.store_name))]); // Debug log
 
@@ -40,10 +40,12 @@ const OrderPage = () => {
                 console.log('After filtering test data:', filteredData); // Debug log
                 console.log('Store names after filtering:', [...new Set(filteredData.map(order => order.store_name))]); // Debug log
 
+                // 전체 데이터 저장 (매장 목록용)
+                setAllOrders(filteredData);
+
                 // '모든 전체 주문'이 선택된 경우 날짜 필터링 제거
                 if (selectedStore === "모든 전체 주문") {
                     console.log('Setting all orders (no date filter)'); // Debug log
-
                     setOrders(filteredData);
                 } else {
                     // 선택된 날짜로 필터링
@@ -51,7 +53,6 @@ const OrderPage = () => {
                         const orderDate = new Date(order.order_time).toISOString().split('T')[0];
                         const matchesDate = orderDate === selectedDate;
                         if (order.store_name === '세계대학조정대회') { // Debug log
-
                             console.log('세계대학조정대회 order:', order, 'date:', orderDate, 'selectedDate:', selectedDate, 'matches:', matchesDate);
                         }
                         return matchesDate;
@@ -72,8 +73,8 @@ const OrderPage = () => {
         fetchOrders();
     }, [isAuthenticated, selectedDate, selectedStore]);
 
-    // 매장 목록 추출
-    const stores = ["모든 전체 주문", "오늘의 전체 주문", ...Array.from(new Set(orders.map(order => order.store_name)))];
+    // 매장 목록 추출 (전체 데이터에서 고정)
+    const stores = ["모든 전체 주문", "오늘의 전체 주문", ...Array.from(new Set(allOrders.map(order => order.store_name)))];
 
     // 필터링된 주문 데이터
 

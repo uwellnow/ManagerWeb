@@ -144,7 +144,7 @@ const StockPage = () => {
         if (!selectedStock || !restockCount.trim()) return;
 
         const count = parseInt(restockCount);
-        if (isNaN(count) || count <= 0) {
+        if (isNaN(count)) {
             alert("올바른 수량을 입력해주세요.");
             return;
         }
@@ -408,11 +408,10 @@ const StockPage = () => {
                                     value={restockCount}
                                     onChange={(e) => setRestockCount(e.target.value)}
                                     placeholder="30"
-                                    min="1"
                                     step="1"
                                     className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
                                 />
-                                <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">숫자만 입력해주세요 (예: 30)</p>
+                                <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">숫자만 입력해주세요 (예: 30, -10)</p>
                             </div>
                         </div>
 
