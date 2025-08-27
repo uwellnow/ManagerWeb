@@ -18,7 +18,6 @@ const SalesCard = ({ sale }: SalesCardProps) => {
                 </span>
             </div>
 
-            {/* 색깔 박스들 - 한 줄에 5개 */}
             <div className="grid grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
                 {kinds.map((kind) => (
                     <SalesDetailCard key={kind} type={kind} data={sale} />
