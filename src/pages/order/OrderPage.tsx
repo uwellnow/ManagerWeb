@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useDate } from "../../context/DateContext";
 import { ordersApi } from "../../api/orders";
+import { exportOrdersToExcel } from "../../utils/excelExport";
 import type { OrderResponse } from "../../types/DTO/OrderResponseDto";
 
 const OrderPage = () => {
@@ -120,6 +121,11 @@ const OrderPage = () => {
         }
     };
 
+    // 엑셀 다운로드 핸들러
+    const handleExcelDownload = () => {
+        exportOrdersToExcel(filteredOrders, selectedStore);
+    };
+
     if (!isAuthenticated) {
         return (
             <div className="flex items-center justify-center min-h-screen">
@@ -176,7 +182,10 @@ const OrderPage = () => {
                 
                 {/* 엑셀 다운로드 버튼 */}
                 <div className="flex justify-center lg:justify-end">
-                    <button className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-lg sm:rounded-xl hover:bg-red-50 hover:border-red-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm">
+                    <button 
+                        onClick={handleExcelDownload}
+                        className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-lg sm:rounded-xl hover:bg-red-50 hover:border-red-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm"
+                    >
                         엑셀 다운로드
                     </button>
                 </div>
