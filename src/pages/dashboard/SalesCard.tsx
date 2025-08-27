@@ -12,7 +12,7 @@ const SalesCard = ({ sale }: SalesCardProps) => {
         <div className="flex flex-col gap-3 sm:gap-4 lg:gap-6 p-4 sm:p-6 lg:p-8 bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 w-full">
             {/* 헤더 */}
             <div className="flex flex-col items-start mb-3 sm:mb-4 lg:mb-6">
-                <h2 className="text-lg sm:text-xl lg:text-2xl mb-1 text-gray-900 font-bold">{sale.storeName} 판매 데이터</h2>
+                <h2 className="text-md sm:text-lg lg:text-xl mb-1 text-gray-900 font-bold">{sale.storeName} 판매 데이터</h2>
                 <span className="text-xs sm:text-sm text-gray-600">
                     판매 요약({new Date(sale.updatedAt).toLocaleString("ko-KR")} updated)
                 </span>
