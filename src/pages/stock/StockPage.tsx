@@ -2,21 +2,25 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { stocksApi } from "../../api/stocks";
-import type { StockResponse, StockData } from "../../types/DTO/StockResponseDto";
+import type { StockResponse, StockData, StockLogResponse } from "../../types/DTO/StockResponseDto";
 
 const StockPage = () => {
     const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [stocks, setStocks] = useState<StockResponse>([]);
+    const [stockLogs, setStockLogs] = useState<StockLogResponse>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
     const [selectedStore, setSelectedStore] = useState<string>("전체 재고");
+    const [selectedLogStore, setSelectedLogStore] = useState<string>("전체 로그");
     const [currentPage, setCurrentPage] = useState(1);
+    const [currentLogPage, setCurrentLogPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedStock, setSelectedStock] = useState<StockData | null>(null);
     const [restockCount, setRestockCount] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const itemsPerPage = 10;
+    const logsPerPage = 10;
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -25,43 +29,73 @@ const StockPage = () => {
     }, [isAuthenticated, navigate]);
 
     useEffect(() => {
-        const fetchStocks = async () => {
+        const fetchData = async () => {
             if (!isAuthenticated) return;
             
             try {
                 setIsLoading(true);
                 setIsError(false);
-                const data = await stocksApi.getStocks();
+                
+                // 재고 데이터, 제품 데이터, 로그 데이터를 병렬로 가져오기
+                const [stocksData, productsData, logsData] = await Promise.all([
+                    stocksApi.getStocks(),
+                    stocksApi.getProducts(),
+                    stocksApi.getStockLogs()
+                ]);
                 
                 // '테스트용' 제외
-                const filteredStocks = data.filter(stock => stock.storeName !== '테스트용');
+                const filteredStocks = stocksData.filter(stock => stock.storeName !== '테스트용');
                 
-                setStocks(filteredStocks);
+                // one_capacity 값 추가
+                const stocksWithCapacity = filteredStocks.map(stock => {
+                    const product = productsData.find(p => p.id === stock.productId);
+                    return {
+                        ...stock,
+                        one_capacity: product?.one_capacity || 0
+                    };
+                });
+                
+                setStocks(stocksWithCapacity);
+                setStockLogs(logsData);
 
             } catch (error) {
-                console.error('Failed to fetch stocks:', error);
+                console.error('Failed to fetch data:', error);
                 setIsError(true);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchStocks();
-    }, [isAuthenticated]); // selectedDate 의존성 제거
+        fetchData();
+    }, [isAuthenticated]);
 
     // 매장 목록 추출
     const stores = ["전체 재고", ...Array.from(new Set(stocks.map(stock => stock.storeName)))];
+    
+    // 로그 매장 목록 추출
+    const logStores = ["전체 로그", ...Array.from(new Set(stockLogs.map(log => log.store_name)))];
 
-    // 필터링된 재고 데이터
+    // 필터링된 재고 데이터 (ID 기준 오름차순)
     const filteredStocks = selectedStore === "전체 재고" 
-        ? stocks 
-        : stocks.filter(stock => stock.storeName === selectedStore);
+        ? stocks.sort((a, b) => a.productId - b.productId)
+        : stocks.filter(stock => stock.storeName === selectedStore).sort((a, b) => a.productId - b.productId);
 
-    // 페이지네이션
+    // 필터링된 로그 데이터 (ID 기준 오름차순)
+    const filteredLogs = selectedLogStore === "전체 로그"
+        ? stockLogs.sort((a, b) => a.id - b.id)
+        : stockLogs.filter(log => log.store_name === selectedLogStore).sort((a, b) => a.id - b.id);
+
+    // 재고 페이지네이션
     const totalPages = Math.ceil(filteredStocks.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentStocks = filteredStocks.slice(startIndex, endIndex);
+
+    // 로그 페이지네이션
+    const totalLogPages = Math.ceil(filteredLogs.length / logsPerPage);
+    const startLogIndex = (currentLogPage - 1) * logsPerPage;
+    const endLogIndex = startLogIndex + logsPerPage;
+    const currentLogs = filteredLogs.slice(startLogIndex, endLogIndex);
 
     // 날짜 포맷팅 함수
     const formatUpdateTime = (updateTime: string) => {
@@ -95,9 +129,9 @@ const StockPage = () => {
     const formatStockCount = (count: number, productTime: string) => {
         if (productTime === "재고관리") {
             if (count >= 100) {
-                return `${count}개`;
+                return `${count}회`;
             } else {
-                return `${count}회 (${count}L)`;
+                return `${count}회`;
             }
         }
         return `${count}회`;
@@ -127,7 +161,10 @@ const StockPage = () => {
 
     // 충전 버튼 클릭 핸들러
     const handleRestockClick = (stock: StockData) => {
-        setSelectedStock(stock);
+        setSelectedStock({
+            ...stock,
+            manager: "" // 담당자 명을 빈칸으로 초기화
+        });
         setRestockCount("");
         setIsModalOpen(true);
     };
@@ -161,8 +198,26 @@ const StockPage = () => {
 
             // 성공 시 모달 닫고 데이터 새로고침
             handleCloseModal();
-            const updatedData = await stocksApi.getStocks();
-            setStocks(updatedData);
+            
+            // 재고 데이터, 제품 데이터, 로그 데이터를 병렬로 가져오기
+            const [updatedStocksData, productsData, logsData] = await Promise.all([
+                stocksApi.getStocks(),
+                stocksApi.getProducts(),
+                stocksApi.getStockLogs()
+            ]);
+            
+            // '테스트용' 제외하고 one_capacity 값 추가
+            const filteredStocks = updatedStocksData.filter(stock => stock.storeName !== '테스트용');
+            const stocksWithCapacity = filteredStocks.map(stock => {
+                const product = productsData.find(p => p.id === stock.productId);
+                return {
+                    ...stock,
+                    one_capacity: product?.one_capacity || 0
+                };
+            });
+            
+            setStocks(stocksWithCapacity);
+            setStockLogs(logsData);
             alert("재고가 성공적으로 보충되었습니다.");
         } catch (error) {
             console.error('Failed to restock:', error);
@@ -238,6 +293,7 @@ const StockPage = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">제품명</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">운동 시점</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">마지막 충전 시간</th>
@@ -250,6 +306,9 @@ const StockPage = () => {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {currentStocks.map((stock, index) => (
                                 <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900 font-medium">
+                                        {stock.productId}
+                                    </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
                                         <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none truncate">
                                             {stock.productName.replace(/\\n/g, ' ')}
@@ -354,6 +413,152 @@ const StockPage = () => {
                 </div>
             )}
 
+            {/* 재고 로그 섹션 */}
+            <div className="mt-8 sm:mt-10 lg:mt-12">
+                {/* 로그 상단 탭 */}
+                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-4">
+                    {/* 로그 매장 선택 탭 */}
+                    <div className="flex flex-wrap gap-1 sm:gap-2 bg-white rounded-lg sm:rounded-xl p-1 sm:p-2 shadow-sm">
+                        {logStores.map((store) => (
+                            <button
+                                key={store}
+                                onClick={() => {
+                                    setSelectedLogStore(store);
+                                    setCurrentLogPage(1);
+                                }}
+                                className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
+                                    selectedLogStore === store
+                                        ? 'bg-purple-600 text-white shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                }`}
+                            >
+                                {store}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 재고 로그 요약 */}
+                <div className="mb-4 sm:mb-6">
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">재고 충전 로그 ({filteredLogs.length})</h2>
+                </div>
+
+                {/* 재고 로그 테이블 */}
+                <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">제품명</th>
+                                    <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">운동 시점</th>
+                                    <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">마지막 충전 시간</th>
+                                    <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">담당자</th>
+                                    <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">충전 전 재고</th>
+                                    <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">충전 후 재고</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {currentLogs.map((log, index) => (
+                                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900 font-medium">
+                                            {log.id}
+                                        </td>
+                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
+                                            <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none truncate">
+                                                {log.product_name || `제품 ID: ${log.product_id}`}
+                                            </div>
+                                        </td>
+                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
+                                            {log.product_time && (
+                                                <span className={`inline-flex px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getWorkoutTimeColor(log.product_time)}`}>
+                                                    {log.product_time}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                            {formatUpdateTime(log.logged_at)}
+                                        </td>
+                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                            {log.manager}
+                                        </td>
+                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                            {log.previous_count}회
+                                        </td>
+                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                            {log.new_count}회
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* 로그 페이지네이션 */}
+                {totalLogPages > 1 && (
+                    <div className="flex justify-center mt-4 sm:mt-6 lg:mt-8">
+                        <nav className="flex items-center space-x-1 sm:space-x-2">
+                            <button
+                                onClick={() => setCurrentLogPage(Math.max(1, currentLogPage - 1))}
+                                disabled={currentLogPage === 1}
+                                className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                &lt;
+                            </button>
+                            
+                            {Array.from({ length: Math.min(5, totalLogPages) }, (_, i) => {
+                                let pageNum;
+                                if (totalLogPages <= 5) {
+                                    pageNum = i + 1;
+                                } else if (currentLogPage <= 3) {
+                                    pageNum = i + 1;
+                                } else if (currentLogPage >= totalLogPages - 2) {
+                                    pageNum = totalLogPages - 4 + i;
+                                } else {
+                                    pageNum = currentLogPage - 2 + i;
+                                }
+                                
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentLogPage(pageNum)}
+                                        className={`px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium rounded-lg transition-colors ${
+                                            currentLogPage === pageNum
+                                                ? 'bg-purple-600 text-white shadow-sm'
+                                                : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                            
+                            {totalLogPages > 5 && currentLogPage < totalLogPages - 2 && (
+                                <span className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base text-gray-500">...</span>
+                            )}
+                            
+                            {totalLogPages > 5 && currentLogPage < totalLogPages - 2 && (
+                                <button
+                                    onClick={() => setCurrentLogPage(totalLogPages)}
+                                    className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    {totalLogPages}
+                                </button>
+                            )}
+                            
+                            <button
+                                onClick={() => setCurrentLogPage(Math.min(totalLogPages, currentLogPage + 1))}
+                                disabled={currentLogPage === totalLogPages}
+                                className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                &gt;
+                            </button>
+                        </nav>
+                    </div>
+                )}
+            </div>
+
             {/* 재고 보충 모달 */}
             {isModalOpen && selectedStock && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -376,8 +581,8 @@ const StockPage = () => {
                                 <input
                                     type="text"
                                     value={selectedStock.manager}
-                                    disabled
-                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base"
+                                    onChange={(e) => setSelectedStock(prev => prev ? { ...prev, manager: e.target.value } : null)}
+                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 />
                             </div>
 
@@ -403,14 +608,23 @@ const StockPage = () => {
 
                             <div>
                                 <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">보충하신 양을 입력해주세요</label>
-                                <input
-                                    type="number"
-                                    value={restockCount}
-                                    onChange={(e) => setRestockCount(e.target.value)}
-                                    placeholder="30"
-                                    step="1"
-                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        value={restockCount}
+                                        onChange={(e) => setRestockCount(e.target.value)}
+                                        placeholder="30"
+                                        step="1"
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setRestockCount(selectedStock.one_capacity?.toString() || "0")}
+                                        className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-black rounded-md hover:bg-gray-50 transition-colors"
+                                    >
+                                        1통
+                                    </button>
+                                </div>
                                 <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">숫자만 입력해주세요 (예: 30, -10)</p>
                             </div>
                         </div>
