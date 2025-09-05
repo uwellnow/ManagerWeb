@@ -180,6 +180,11 @@ const StockPage = () => {
     const handleRestockSubmit = async () => {
         if (!selectedStock || !restockCount.trim()) return;
 
+        if (!selectedStock.manager.trim()) {
+            alert("담당자 이름을 입력해주세요.");
+            return;
+        }
+
         const count = parseInt(restockCount);
         if (isNaN(count)) {
             alert("올바른 수량을 입력해주세요.");
@@ -272,7 +277,7 @@ const StockPage = () => {
                             }}
                             className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
                                 selectedStore === store
-                                    ? 'bg-purple-600 text-white shadow-sm'
+                                    ? 'bg-mainRed text-white shadow-sm'
                                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                             }`}
                         >
@@ -380,7 +385,7 @@ const StockPage = () => {
                                     onClick={() => setCurrentPage(pageNum)}
                                     className={`px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium rounded-lg transition-colors ${
                                         currentPage === pageNum
-                                            ? 'bg-purple-600 text-white shadow-sm'
+                                            ? 'bg-mainRed text-white shadow-sm'
                                             : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
                                     }`}
                                 >
@@ -428,7 +433,7 @@ const StockPage = () => {
                                 }}
                                 className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
                                     selectedLogStore === store
-                                        ? 'bg-purple-600 text-white shadow-sm'
+                                        ? 'bg-mainRed text-white shadow-sm'
                                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                                 }`}
                             >
@@ -525,7 +530,7 @@ const StockPage = () => {
                                         onClick={() => setCurrentLogPage(pageNum)}
                                         className={`px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium rounded-lg transition-colors ${
                                             currentLogPage === pageNum
-                                                ? 'bg-purple-600 text-white shadow-sm'
+                                                ? 'bg-mainRed text-white shadow-sm'
                                                 : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
                                         }`}
                                     >
@@ -582,7 +587,7 @@ const StockPage = () => {
                                     type="text"
                                     value={selectedStock.manager}
                                     onChange={(e) => setSelectedStock(prev => prev ? { ...prev, manager: e.target.value } : null)}
-                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
                                 />
                             </div>
 
@@ -615,7 +620,7 @@ const StockPage = () => {
                                         onChange={(e) => setRestockCount(e.target.value)}
                                         placeholder="30"
                                         step="1"
-                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent text-sm sm:text-base"
                                     />
                                     <button
                                         type="button"
@@ -632,7 +637,7 @@ const StockPage = () => {
                         <div className="mt-4 sm:mt-6">
                             <button
                                 onClick={handleRestockSubmit}
-                                disabled={isSubmitting || !restockCount.trim()}
+                                disabled={isSubmitting || !restockCount.trim() || !selectedStock?.manager.trim()}
                                 className="w-full bg-red-600 text-white py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base lg:text-lg font-medium"
                             >
                                 {isSubmitting ? '저장 중...' : '저장'}

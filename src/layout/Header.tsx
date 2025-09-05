@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import uwellnowlogo from '../assets/uwellnow.svg'
 import { useAuth } from '../context/AuthContext';
 import { useDate } from '../context/DateContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import DateRangePicker from '../components/DateRangePicker';
+import DatePicker from '../components/DatePicker';
 
 interface DateRange {
     startDate: string;
@@ -17,6 +20,8 @@ const Header = ({ onMenuClick }: HeaderProps) => {
     const { selectedDate, setSelectedDate, dateRange, setDateRange } = useDate();
     const navigate = useNavigate();
     const location = useLocation();
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [isSingleDatePickerOpen, setIsSingleDatePickerOpen] = useState(false);
     
     const isOrderPage = location.pathname === '/order';
     
@@ -35,6 +40,14 @@ const Header = ({ onMenuClick }: HeaderProps) => {
         }
         
         return `${formatDateForDisplay(startDate)} ~ ${formatDateForDisplay(endDate)}`;
+    };
+
+    const handleDateRangeSelect = (range: DateRange) => {
+        setDateRange(range);
+    };
+
+    const handleDateSelect = (date: string) => {
+        setSelectedDate(date);
     };
 
     const handleLogout = () => {
@@ -62,43 +75,19 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                         <span className="text-grayBlue font-semibold text-lg lg:text-2xl">
                             {formatDateRangeForDisplay(dateRange.startDate, dateRange.endDate)}
                         </span>
-                        <div className="flex items-center space-x-1">
-                            <div className="relative">
-                                <input
-                                    type="date"
-                                    value={dateRange.startDate}
-                                    onChange={(e) => setDateRange((prev: DateRange) => ({ ...prev, startDate: e.target.value }) as DateRange)}
-                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                    max={new Date().toISOString().split('T')[0]}
-                                />
-                                <svg 
-                                    className="w-5 h-5 lg:w-6 lg:h-6 text-grayBlue cursor-pointer" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                            <span className="text-grayBlue text-sm lg:text-base">~</span>
-                            <div className="relative">
-                                <input
-                                    type="date"
-                                    value={dateRange.endDate}
-                                    onChange={(e) => setDateRange((prev: DateRange) => ({ ...prev, endDate: e.target.value }) as DateRange)}
-                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                    max={new Date().toISOString().split('T')[0]}
-                                />
-                                <svg 
-                                    className="w-5 h-5 lg:w-6 lg:h-6 text-grayBlue cursor-pointer" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                        </div>
+                        <button
+                            onClick={() => setIsDatePickerOpen(true)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            <svg 
+                                className="w-5 h-5 lg:w-6 lg:h-6 text-grayBlue" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </button>
                     </div>
                 ) : (
                     // 다른 페이지: 단일 날짜 선택
@@ -106,23 +95,19 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                         <span className="text-grayBlue font-semibold text-lg lg:text-2xl">
                             {formatDateForDisplay(selectedDate)}
                         </span>
-                        <div className="relative">
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                max={new Date().toISOString().split('T')[0]}
-                            />
+                        <button
+                            onClick={() => setIsSingleDatePickerOpen(true)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
                             <svg 
-                                className="w-5 h-5 lg:w-6 lg:h-6 text-grayBlue cursor-pointer" 
+                                className="w-5 h-5 lg:w-6 lg:h-6 text-grayBlue" 
                                 fill="none" 
                                 stroke="currentColor" 
                                 viewBox="0 0 24 24"
                             >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                        </div>
+                        </button>
                     </div>
                 )}
             </div>
@@ -153,6 +138,22 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                     </svg>
                 </button>
             </div>
+
+            {/* 커스텀 달력 */}
+            <DateRangePicker
+                isOpen={isDatePickerOpen}
+                onClose={() => setIsDatePickerOpen(false)}
+                onDateRangeSelect={handleDateRangeSelect}
+                currentRange={dateRange}
+            />
+            
+            {/* 단일 날짜 선택 달력 */}
+            <DatePicker
+                isOpen={isSingleDatePickerOpen}
+                onClose={() => setIsSingleDatePickerOpen(false)}
+                onDateSelect={handleDateSelect}
+                currentDate={selectedDate}
+            />
         </div>
     );
 };
