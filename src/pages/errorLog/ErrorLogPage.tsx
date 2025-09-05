@@ -55,6 +55,10 @@ const ErrorLogPage = () => {
                 return '테스트';
             case 20255621:
                 return '세계대학조정대회';
+            case 20259764:
+                return '머슬비치';
+            case 20258575:
+                return '멋짐';
             default:
                 return `기기 ${machineId}`;
         }
