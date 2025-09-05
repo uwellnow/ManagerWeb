@@ -14,6 +14,7 @@ const CustomerPage = () => {
     const [isError, setIsError] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [isRefunding, setIsRefunding] = useState<number | null>(null);
+    const [selectedMemberType, setSelectedMemberType] = useState<string>("전체 회원");
     const itemsPerPage = 10;
 
     useEffect(() => {
@@ -42,12 +43,6 @@ const CustomerPage = () => {
         fetchMembers();
     }, [isAuthenticated]);
 
-    // 페이지네이션
-    const totalPages = Math.ceil(members.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const currentMembers = members.slice(startIndex, endIndex);
-
     // 회원 구분 결정 함수
     const getMemberType = (member: Member): string => {
         if (member.memberships.length === 0) {
@@ -58,17 +53,25 @@ const CustomerPage = () => {
         const membershipNames = member.memberships.map(m => m.name);
         
         if (membershipNames.some(name => name.includes("트레이너"))) {
-            return "소속 트레이너";
+            return "트레이너";
         }
-        if (membershipNames.some(name => name.includes("앰배서더"))) {
-            return "앰배서더";
-        }
-        if (membershipNames.some(name => name.includes("협찬"))) {
-            return "일일권 협찬";
+        if (membershipNames.some(name => name.includes("서포터즈") || name.includes("앰배서더"))) {
+            return "서포터즈";
         }
         
         return "일반 회원";
     };
+
+    // 회원 구분별 필터링
+    const filteredMembers = selectedMemberType === "전체 회원"
+        ? members
+        : members.filter(member => getMemberType(member) === selectedMemberType);
+
+    // 페이지네이션
+    const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentMembers = filteredMembers.slice(startIndex, endIndex);
 
     // 성별 표시 함수
     const getGenderDisplay = (gender: string | null): string => {
@@ -176,14 +179,24 @@ const CustomerPage = () => {
         <div className="flex-1 p-3 sm:p-4 lg:p-6">
             {/* 상단 탭 */}
             <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-4">
-                {/* 매장 선택 탭 */}
+                {/* 회원 구분 선택 탭 */}
                 <div className="flex flex-wrap gap-1 sm:gap-2 bg-white rounded-lg sm:rounded-xl p-1 sm:p-2 shadow-sm">
-                    <button className="px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap bg-purple-600 text-white shadow-sm">
-                        멋짐 서면점
-                    </button>
-                    <button className="px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap text-gray-600 hover:text-gray-900 hover:bg-gray-100">
-                        인트로피트니스
-                    </button>
+                    {["전체 회원", "일반 회원", "트레이너", "서포터즈"].map((memberType) => (
+                        <button
+                            key={memberType}
+                            onClick={() => {
+                                setSelectedMemberType(memberType);
+                                setCurrentPage(1);
+                            }}
+                            className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
+                                selectedMemberType === memberType
+                                    ? 'bg-purple-600 text-white shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                            }`}
+                        >
+                            {memberType}
+                        </button>
+                    ))}
                 </div>
                 
                 {/* 수동 회원 등록 버튼 */}
@@ -199,7 +212,9 @@ const CustomerPage = () => {
 
             {/* 회원 요약 */}
             <div className="mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">회원 ({members.length})</h2>
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
+                    {selectedMemberType} ({filteredMembers.length})
+                </h2>
             </div>
 
             {/* 회원 테이블 */}
