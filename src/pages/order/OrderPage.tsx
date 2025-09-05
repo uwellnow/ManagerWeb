@@ -8,7 +8,7 @@ import type { OrderResponse } from "../../types/DTO/OrderResponseDto";
 
 const OrderPage = () => {
     const { isAuthenticated } = useAuth();
-    const { selectedDate } = useDate();
+    const { dateRange } = useDate();
     const navigate = useNavigate();
     const [orders, setOrders] = useState<OrderResponse>([]);
     const [allOrders, setAllOrders] = useState<OrderResponse>([]);
@@ -49,12 +49,12 @@ const OrderPage = () => {
                     console.log('Setting all orders (no date filter)'); // Debug log
                     setOrders(filteredData);
                 } else {
-                    // 선택된 날짜로 필터링
+                    // 선택된 기간으로 필터링
                     const dateFilteredOrders = filteredData.filter(order => {
                         const orderDate = new Date(order.order_time).toISOString().split('T')[0];
-                        const matchesDate = orderDate === selectedDate;
+                        const matchesDate = orderDate >= dateRange.startDate && orderDate <= dateRange.endDate;
                         if (order.store_name === '세계대학조정대회') { // Debug log
-                            console.log('세계대학조정대회 order:', order, 'date:', orderDate, 'selectedDate:', selectedDate, 'matches:', matchesDate);
+                            console.log('세계대학조정대회 order:', order, 'date:', orderDate, 'dateRange:', dateRange, 'matches:', matchesDate);
                         }
                         return matchesDate;
                     });
@@ -72,7 +72,7 @@ const OrderPage = () => {
         };
 
         fetchOrders();
-    }, [isAuthenticated, selectedDate, selectedStore]);
+    }, [isAuthenticated, dateRange, selectedStore]);
 
     // 매장 목록 추출 (전체 데이터에서 고정)
     const stores = ["모든 전체 주문", "오늘의 전체 주문", ...Array.from(new Set(allOrders.map(order => order.store_name)))];
