@@ -1,9 +1,10 @@
 import dashboard from '../assets/dashboard.svg';
 import nodashboard from '../assets/nodashboard.svg'
 import order from '../assets/order.svg'
+import customer from '../assets/customer.svg'
 import stock from '../assets/stock.svg'
 import error from '../assets/error_log.svg'
-import uwellnowlogo from '../../public/uwellnow.svg'
+import uwellnowlogo from '../assets/uwellnow.svg'
 import signout from '../assets/signout.svg'
 import {NavLink, useNavigate} from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,7 @@ interface SidebarProps {
 const sideItems = [
     {label: '대시보드', activeImg: dashboard, inactiveImg: nodashboard, path: '/dashboard'},
     {label: '주문', img: order, path: '/order'},
+    {label: '고객 정보', img: customer, path: '/customer'},
     {label: '재고', img: stock, path: '/stock'},
     {label: '에러 로그', img: error, path: '/error-log'},
 ]
