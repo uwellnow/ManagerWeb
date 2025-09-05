@@ -171,7 +171,7 @@ const OrderPage = () => {
                             }}
                             className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
                                 selectedStore === store
-                                    ? 'bg-purple-600 text-white shadow-sm'
+                                    ? 'bg-mainRed text-white shadow-sm'
                                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                             }`}
                         >
@@ -276,7 +276,7 @@ const OrderPage = () => {
                                     onClick={() => setCurrentPage(pageNum)}
                                     className={`px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium rounded-lg transition-colors ${
                                         currentPage === pageNum
-                                            ? 'bg-purple-600 text-white shadow-sm'
+                                            ? 'bg-mainRed text-white shadow-sm'
                                             : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
                                     }`}
                                 >

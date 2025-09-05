@@ -39,7 +39,9 @@ const CustomerPage = () => {
                 setIsLoading(true);
                 setIsError(false);
                 const data = await membersApi.getMembers();
-                setMembers(data.members);
+                // 등록 최신 순으로 정렬 (id 기준 내림차순)
+                const sortedMembers = data.members.sort((a, b) => b.id - a.id);
+                setMembers(sortedMembers);
             } catch (error) {
                 console.error('Failed to fetch members:', error);
                 setIsError(true);
@@ -186,8 +188,23 @@ const CustomerPage = () => {
 
     // 환불 처리 함수
     const handleRefundSubmit = async () => {
-        if (!selectedMember || !refundCount.trim() || !refundReason.trim() || !processedBy.trim()) {
-            alert("모든 필드를 입력해주세요.");
+        if (!selectedMember) {
+            alert("회원 정보를 찾을 수 없습니다.");
+            return;
+        }
+
+        if (!refundCount.trim()) {
+            alert("환불 개수를 입력해주세요.");
+            return;
+        }
+
+        if (!refundReason.trim()) {
+            alert("환불 사유를 입력해주세요.");
+            return;
+        }
+
+        if (!processedBy.trim()) {
+            alert("담당자 이름을 입력해주세요.");
             return;
         }
 
@@ -216,7 +233,9 @@ const CustomerPage = () => {
                 membersApi.getMembers(),
                 membersApi.getRefunds()
             ]);
-            setMembers(membersData.members);
+            // 등록 최신 순으로 정렬 (id 기준 내림차순)
+            const sortedMembers = membersData.members.sort((a, b) => b.id - a.id);
+            setMembers(sortedMembers);
             setRefunds(refundsData.refunds);
             
             alert("환불이 완료되었습니다.");
@@ -273,7 +292,7 @@ const CustomerPage = () => {
                             }}
                             className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
                                 selectedMemberType === memberType
-                                    ? 'bg-purple-600 text-white shadow-sm'
+                                    ? 'bg-mainRed text-white shadow-sm'
                                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                             }`}
                         >
@@ -284,7 +303,7 @@ const CustomerPage = () => {
                 
                 {/* 수동 회원 등록 버튼 */}
                 <div className="flex justify-center lg:justify-end">
-                    <button className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-black text-white rounded-lg sm:rounded-xl hover:bg-gray-800 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm flex items-center gap-2">
+                    <button className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-transparent text-black rounded-lg border border-gray-800 sm:rounded-xl hover:bg-gray-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
@@ -344,7 +363,7 @@ const CustomerPage = () => {
                                         {member.memberships.length > 0 ? (
                                             <button 
                                                 onClick={() => handleRefundClick(member)}
-                                                className="inline-flex px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-semibold rounded-full bg-gray-600 text-white border-none hover:bg-gray-700 transition-colors"
+                                                className="inline-flex px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg bg-gray-800 text-white border-none hover:bg-gray-700 transition-colors"
                                             >
                                                 환불
                                             </button>
@@ -389,7 +408,7 @@ const CustomerPage = () => {
                                     onClick={() => setCurrentPage(pageNum)}
                                     className={`px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium rounded-lg transition-colors ${
                                         currentPage === pageNum
-                                            ? 'bg-purple-600 text-white shadow-sm'
+                                            ? 'bg-mainRed text-white shadow-sm'
                                             : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
                                     }`}
                                 >
@@ -539,7 +558,7 @@ const CustomerPage = () => {
                                         value={refundReason}
                                         onChange={(e) => setRefundReason(e.target.value)}
                                         placeholder="환불 사유를 입력하세요"
-                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
                                     />
                                 </div>
 
@@ -551,7 +570,7 @@ const CustomerPage = () => {
                                         onChange={(e) => setRefundCount(e.target.value)}
                                         placeholder="1"
                                         min="1"
-                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
                                     />
                                 </div>
                             </div>
@@ -565,7 +584,7 @@ const CustomerPage = () => {
                                         value={processedBy}
                                         onChange={(e) => setProcessedBy(e.target.value)}
                                         placeholder="담당자명을 입력하세요"
-                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
                                     />
                                 </div>
 
