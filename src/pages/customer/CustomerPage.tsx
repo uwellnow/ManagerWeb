@@ -1,0 +1,334 @@
+
+
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { membersApi } from "../../api/members";
+import type { Member } from "../../types/DTO/MemberResponseDto";
+
+const CustomerPage = () => {
+    const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+    const [members, setMembers] = useState<Member[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isError, setIsError] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [isRefunding, setIsRefunding] = useState<number | null>(null);
+    const itemsPerPage = 10;
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            navigate('/');
+        }
+    }, [isAuthenticated, navigate]);
+
+    useEffect(() => {
+        const fetchMembers = async () => {
+            if (!isAuthenticated) return;
+            
+            try {
+                setIsLoading(true);
+                setIsError(false);
+                const data = await membersApi.getMembers();
+                setMembers(data.members);
+            } catch (error) {
+                console.error('Failed to fetch members:', error);
+                setIsError(true);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchMembers();
+    }, [isAuthenticated]);
+
+    // 페이지네이션
+    const totalPages = Math.ceil(members.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentMembers = members.slice(startIndex, endIndex);
+
+    // 회원 구분 결정 함수
+    const getMemberType = (member: Member): string => {
+        if (member.memberships.length === 0) {
+            return "일반 회원";
+        }
+        
+        // 멤버십 이름으로 구분
+        const membershipNames = member.memberships.map(m => m.name);
+        
+        if (membershipNames.some(name => name.includes("트레이너"))) {
+            return "소속 트레이너";
+        }
+        if (membershipNames.some(name => name.includes("앰배서더"))) {
+            return "앰배서더";
+        }
+        if (membershipNames.some(name => name.includes("협찬"))) {
+            return "일일권 협찬";
+        }
+        
+        return "일반 회원";
+    };
+
+    // 성별 표시 함수
+    const getGenderDisplay = (gender: string | null): string => {
+        if (!gender) return "-";
+        if (gender === "M" || gender === "남") return "남";
+        if (gender === "F" || gender === "여") return "여";
+        return gender;
+    };
+
+    // 생년월일 표시 함수
+    const getBirthDisplay = (birth: string | null): string => {
+        if (!birth) return "-";
+        return birth;
+    };
+
+    // 전화번호 포맷팅 함수
+    const formatPhoneNumber = (phone: string): string => {
+        if (!phone) return "-";
+        // 하이픈이 없는 경우 추가
+        if (phone.length === 11 && !phone.includes('-')) {
+            return phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+        }
+        return phone;
+    };
+
+    // 결제일시 계산 (가장 최근 멤버십의 결제일)
+    const getPaymentDate = (member: Member): string => {
+        if (member.memberships.length === 0) return "-";
+        
+        // 바코드에서 날짜 추출 (예: 202508175011216 -> 2025.08.17)
+        const latestMembership = member.memberships[member.memberships.length - 1];
+        const barcode = latestMembership.barcode;
+        
+        if (barcode.length >= 8) {
+            const year = barcode.substring(0, 4);
+            const month = barcode.substring(4, 6);
+            const day = barcode.substring(6, 8);
+            return `${year}.${month}.${day}`;
+        }
+        
+        return "-";
+    };
+
+    // 이용현황 계산 (remain/total)
+    const getUsageStatus = (member: Member): string => {
+        if (member.memberships.length === 0) return "-";
+        
+        // 가장 최근 멤버십의 이용현황
+        const latestMembership = member.memberships[member.memberships.length - 1];
+        return `${latestMembership.remain_count}/${latestMembership.total_count}`;
+    };
+
+    // 환불 처리 함수
+    const handleRefund = async (memberId: number, membershipId: number) => {
+        if (!confirm("정말로 환불하시겠습니까?")) return;
+        
+        try {
+            setIsRefunding(membershipId);
+            await membersApi.refundMember(memberId, membershipId);
+            
+            // 데이터 새로고침
+            const data = await membersApi.getMembers();
+            setMembers(data.members);
+            
+            alert("환불이 완료되었습니다.");
+        } catch (error) {
+            console.error('Failed to refund:', error);
+            alert("환불 처리에 실패했습니다. 다시 시도해주세요.");
+        } finally {
+            setIsRefunding(null);
+        }
+    };
+
+    if (!isAuthenticated) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="w-8 h-8 border-4 border-mainRed border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen p-4">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-mainRed border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm sm:text-base lg:text-lg text-gray-600">회원 데이터를 불러오는 중...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <div className="flex items-center justify-center min-h-screen p-4">
+                <div className="text-center max-w-md">
+                    <div className="text-red-500 text-lg sm:text-xl lg:text-2xl font-semibold mb-3">데이터 로드 실패</div>
+                    <div className="text-gray-600 text-sm sm:text-base lg:text-lg">회원 데이터를 불러오지 못했습니다. 다시 시도해주세요.</div>
+                </div>
+        </div>
+        );
+    }
+
+    return (
+        <div className="flex-1 p-3 sm:p-4 lg:p-6">
+            {/* 상단 탭 */}
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-4">
+                {/* 매장 선택 탭 */}
+                <div className="flex flex-wrap gap-1 sm:gap-2 bg-white rounded-lg sm:rounded-xl p-1 sm:p-2 shadow-sm">
+                    <button className="px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap bg-purple-600 text-white shadow-sm">
+                        멋짐 서면점
+                    </button>
+                    <button className="px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                        인트로피트니스
+                    </button>
+                </div>
+                
+                {/* 수동 회원 등록 버튼 */}
+                <div className="flex justify-center lg:justify-end">
+                    <button className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-black text-white rounded-lg sm:rounded-xl hover:bg-gray-800 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        수동 회원 등록
+                    </button>
+                </div>
+            </div>
+
+            {/* 회원 요약 */}
+            <div className="mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">회원 ({members.length})</h2>
+            </div>
+
+            {/* 회원 테이블 */}
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">회원명</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">회원 구분</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">성별</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">생년월일</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">전화번호</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">결제일시</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">이용 현황</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">환불</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {currentMembers.map((member) => (
+                                <tr key={member.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900 font-medium">
+                                        {member.name}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                        {getMemberType(member)}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                        {getGenderDisplay(member.gender)}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                        {getBirthDisplay(member.birth)}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                        {formatPhoneNumber(member.phone)}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                        {getPaymentDate(member)}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                        {getUsageStatus(member)}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
+                                        {member.memberships.length > 0 ? (
+                                            <button 
+                                                onClick={() => {
+                                                    const latestMembership = member.memberships[member.memberships.length - 1];
+                                                    handleRefund(member.id, latestMembership.id);
+                                                }}
+                                                disabled={isRefunding === member.memberships[member.memberships.length - 1]?.id}
+                                                className="inline-flex px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-semibold rounded-full bg-gray-600 text-white border-none hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                {isRefunding === member.memberships[member.memberships.length - 1]?.id ? '처리중...' : '환불'}
+                                            </button>
+                                        ) : (
+                                            <span className="text-gray-400 text-xs sm:text-sm">-</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* 페이지네이션 */}
+            {totalPages > 1 && (
+                <div className="flex justify-center mt-4 sm:mt-6 lg:mt-8">
+                    <nav className="flex items-center space-x-1 sm:space-x-2">
+                        <button
+                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            &lt;
+                        </button>
+                        
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                                pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                                pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                            } else {
+                                pageNum = currentPage - 2 + i;
+                            }
+                            
+                            return (
+                                <button
+                                    key={pageNum}
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    className={`px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium rounded-lg transition-colors ${
+                                        currentPage === pageNum
+                                            ? 'bg-purple-600 text-white shadow-sm'
+                                            : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    {pageNum}
+                                </button>
+                            );
+                        })}
+                        
+                        {totalPages > 5 && currentPage < totalPages - 2 && (
+                            <span className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base text-gray-500">...</span>
+                        )}
+                        
+                        {totalPages > 5 && currentPage < totalPages - 2 && (
+                            <button
+                                onClick={() => setCurrentPage(totalPages)}
+                                className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                {totalPages}
+                            </button>
+                        )}
+                        
+                        <button
+                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            &gt;
+                        </button>
+                    </nav>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default CustomerPage;

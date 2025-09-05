@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation, Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar.tsx";
 import Header from "./Header.tsx";
 import FullContainer from "./FullContainer.tsx";
@@ -6,11 +7,22 @@ import { DateProvider } from "../context/DateContext";
 
 const MainLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const location = useLocation();
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
     };
 
+    // 로그인 페이지인 경우 레이아웃 없이 Outlet만 렌더링
+    if (location.pathname === '/') {
+        return (
+            <DateProvider>
+                <Outlet />
+            </DateProvider>
+        );
+    }
+
+    // 다른 페이지들은 사이드바와 헤더가 있는 레이아웃 사용
     return (
         <DateProvider>
             <div className="flex flex-row h-screen">

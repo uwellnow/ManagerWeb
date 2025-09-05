@@ -1,4 +1,4 @@
-import uwellnowlogo from '../../public/uwellnow.svg'
+import uwellnowlogo from '../assets/uwellnow.svg'
 import { useAuth } from '../context/AuthContext';
 import { useDate } from '../context/DateContext';
 import { useNavigate } from 'react-router-dom';
