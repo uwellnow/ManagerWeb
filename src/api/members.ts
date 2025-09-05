@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { RefundsResponseDto } from '../types/DTO/MemberResponseDto';
 
 // 타입을 직접 정의
 interface Membership {
@@ -29,7 +30,17 @@ export const membersApi = {
   },
 
   // 회원 환불 처리
-  refundMember: async (memberId: number, membershipId: number): Promise<void> => {
-    return apiClient.post(`/members/${memberId}/refund`, { membershipId });
+  refundMember: async (refundData: {
+    membership_id: number;
+    refund_count: number;
+    refund_reason: string;
+    processed_by: string;
+  }): Promise<void> => {
+    return apiClient.post('/member/refunds', refundData);
+  },
+
+  // 환불 로그 조회
+  getRefunds: async (): Promise<RefundsResponseDto> => {
+    return apiClient.get<RefundsResponseDto>('/member/refunds');
   }
 };
