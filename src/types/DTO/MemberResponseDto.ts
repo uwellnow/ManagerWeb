@@ -12,6 +12,7 @@ export interface Member {
   phone: string;
   birth: string | null;
   gender: string | null;
+  member_type?: string;
   memberships: Membership[];
 }
 

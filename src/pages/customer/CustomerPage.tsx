@@ -23,6 +23,21 @@ const CustomerPage = () => {
     const [refunds, setRefunds] = useState<RefundLog[]>([]);
     const [isRefundsLoading, setIsRefundsLoading] = useState(true);
     const [isRefundsError, setIsRefundsError] = useState(false);
+    
+    // 회원 등록 모달 상태
+    const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+    const [registerForm, setRegisterForm] = useState({
+        name: '',
+        registrant_name: '',
+        member_type: '일반 회원',
+        gender: '',
+        birth: '',
+        phone: '',
+        total_count: '',
+        barcode: ''
+    });
+    const [isRegisterSubmitting, setIsRegisterSubmitting] = useState(false);
+    
     const itemsPerPage = 10;
 
     useEffect(() => {
@@ -39,8 +54,9 @@ const CustomerPage = () => {
                 setIsLoading(true);
                 setIsError(false);
                 const data = await membersApi.getMembers();
-                // 등록 최신 순으로 정렬 (id 기준 내림차순)
-                const sortedMembers = data.members.sort((a, b) => b.id - a.id);
+                // 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
+                const membersWithMemberships = data.members.filter(member => member.memberships && member.memberships.length > 0);
+                const sortedMembers = membersWithMemberships.sort((a, b) => b.id - a.id);
                 setMembers(sortedMembers);
             } catch (error) {
                 console.error('Failed to fetch members:', error);
@@ -73,23 +89,28 @@ const CustomerPage = () => {
         fetchRefunds();
     }, [isAuthenticated]);
 
-    // 회원 구분 결정 함수
+    // 회원 구분 결정 함수 - 데이터베이스에서 받아온 member_type 그대로 사용
     const getMemberType = (member: Member): string => {
-        if (member.memberships.length === 0) {
-            return "일반 회원";
+        // member_type이 있으면 그대로 사용 (데이터베이스 값 우선)
+        if (member.member_type) {
+            return member.member_type;
         }
         
-        // 멤버십 이름으로 구분
+        // member_type이 없는 경우에만 멤버십 이름으로 구분
+        if (member.memberships.length === 0) {
+            return "일반 회원"; // 기본값
+        }
+        
         const membershipNames = member.memberships.map(m => m.name);
         
         if (membershipNames.some(name => name.includes("트레이너"))) {
             return "트레이너";
         }
-        if (membershipNames.some(name => name.includes("서포터즈") || name.includes("앰배서더"))) {
+        if (membershipNames.some(name => name.includes("서포터즈") || name.includes("앰버서더"))) {
             return "서포터즈";
         }
         
-        return "일반 회원";
+        return "일반 회원"; // 기본값
     };
 
     // 회원 구분별 필터링
@@ -233,8 +254,9 @@ const CustomerPage = () => {
                 membersApi.getMembers(),
                 membersApi.getRefunds()
             ]);
-            // 등록 최신 순으로 정렬 (id 기준 내림차순)
-            const sortedMembers = membersData.members.sort((a, b) => b.id - a.id);
+            // 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
+            const membersWithMemberships = membersData.members.filter(member => member.memberships && member.memberships.length > 0);
+            const sortedMembers = membersWithMemberships.sort((a, b) => b.id - a.id);
             setMembers(sortedMembers);
             setRefunds(refundsData.refunds);
             
@@ -244,6 +266,125 @@ const CustomerPage = () => {
             alert("환불 처리에 실패했습니다. 다시 시도해주세요.");
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    // 회원 등록 모달 핸들러들
+    const handleRegisterClick = () => {
+        setIsRegisterModalOpen(true);
+        setRegisterForm({
+            name: '',
+            registrant_name: '',
+            member_type: '일반 회원',
+            gender: '',
+            birth: '',
+            phone: '',
+            total_count: '',
+            barcode: ''
+        });
+    };
+
+    const handleCloseRegisterModal = () => {
+        setIsRegisterModalOpen(false);
+        setRegisterForm({
+            name: '',
+            registrant_name: '',
+            member_type: '일반 회원',
+            gender: '',
+            birth: '',
+            phone: '',
+            total_count: '',
+            barcode: ''
+        });
+    };
+
+    const handleRegisterSubmit = async () => {
+        // 필수 필드 검증
+        if (!registerForm.name.trim()) {
+            alert("회원명을 입력해주세요.");
+            return;
+        }
+        if (!registerForm.registrant_name.trim()) {
+            alert("등록 담당자명을 입력해주세요.");
+            return;
+        }
+        if (!registerForm.gender) {
+            alert("성별을 선택해주세요.");
+            return;
+        }
+        if (!registerForm.birth.trim()) {
+            alert("생년월일을 입력해주세요.");
+            return;
+        }
+        if (!registerForm.phone.trim()) {
+            alert("전화번호를 입력해주세요.");
+            return;
+        }
+        if (!registerForm.total_count.trim()) {
+            alert("등록 잔 개수를 입력해주세요.");
+            return;
+        }
+        if (!registerForm.barcode.trim()) {
+            alert("바코드 번호를 입력해주세요.");
+            return;
+        }
+
+        // 바코드 번호 7자리 검증
+        if (registerForm.barcode.length !== 7) {
+            alert("바코드 번호는 7자리여야 합니다.");
+            return;
+        }
+
+        try {
+            setIsRegisterSubmitting(true);
+            
+            // 현재 시간을 YYYY-MM-DD HH:MM:SS 형식으로 변환
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const registrationDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            
+            // 성별을 M/F로 변환
+            const genderCode = registerForm.gender === '남성' ? 'M' : 'F';
+            
+            await membersApi.registerMember({
+                phone: registerForm.phone,
+                name: registerForm.name,
+                registrant_name: registerForm.registrant_name,
+                member_type: registerForm.member_type,
+                birth: registerForm.birth,
+                gender: genderCode,
+                registration_date: registrationDate,
+                barcode: registerForm.barcode,
+                membership_name: registerForm.member_type,
+                total_count: parseInt(registerForm.total_count),
+                remain_count: parseInt(registerForm.total_count) // remain_count = total_count
+            });
+            
+            // 성공 시 모달 닫고 데이터 새로고침
+            handleCloseRegisterModal();
+            
+            // 데이터 새로고침
+            const [membersData, refundsData] = await Promise.all([
+                membersApi.getMembers(),
+                membersApi.getRefunds()
+            ]);
+            // 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
+            const membersWithMemberships = membersData.members.filter(member => member.memberships && member.memberships.length > 0);
+            const sortedMembers = membersWithMemberships.sort((a, b) => b.id - a.id);
+            setMembers(sortedMembers);
+            setRefunds(refundsData.refunds);
+            
+            alert("회원 등록이 완료되었습니다.");
+        } catch (error) {
+            console.error('Failed to register member:', error);
+            alert("회원 등록에 실패했습니다. 다시 시도해주세요.");
+        } finally {
+            setIsRegisterSubmitting(false);
         }
     };
 
@@ -283,7 +424,7 @@ const CustomerPage = () => {
             <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-4">
                 {/* 회원 구분 선택 탭 */}
                 <div className="flex flex-wrap gap-1 sm:gap-2 bg-white rounded-lg sm:rounded-xl p-1 sm:p-2 shadow-sm">
-                    {["전체 회원", "일반 회원", "트레이너", "서포터즈"].map((memberType) => (
+                    {["전체 회원", "일반 회원", "트레이너", "서포터즈", "일일권 협찬"].map((memberType) => (
                         <button
                             key={memberType}
                             onClick={() => {
@@ -303,7 +444,9 @@ const CustomerPage = () => {
                 
                 {/* 수동 회원 등록 버튼 */}
                 <div className="flex justify-center lg:justify-end">
-                    <button className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-transparent text-black rounded-lg border border-gray-800 sm:rounded-xl hover:bg-gray-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm flex items-center gap-2">
+                    <button 
+                        onClick={handleRegisterClick}
+                        className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-transparent text-black rounded-lg border border-gray-800 sm:rounded-xl hover:bg-gray-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
@@ -607,6 +750,148 @@ const CustomerPage = () => {
                                 className="w-full bg-red-600 text-white py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base lg:text-lg font-medium"
                             >
                                 {isSubmitting ? '저장 중...' : '저장'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 회원 등록 모달 */}
+            {isRegisterModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4 sm:mb-6">
+                            <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">회원 등록</h3>
+                            <button
+                                onClick={handleCloseRegisterModal}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                            {/* 왼쪽 컬럼 */}
+                            <div className="space-y-3 sm:space-y-4">
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">회원명 *</label>
+                                    <input
+                                        type="text"
+                                        value={registerForm.name}
+                                        onChange={(e) => setRegisterForm(prev => ({ ...prev, name: e.target.value }))}
+                                        placeholder="회원명을 입력하세요"
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">등록 담당자명 *</label>
+                                    <input
+                                        type="text"
+                                        value={registerForm.registrant_name}
+                                        onChange={(e) => setRegisterForm(prev => ({ ...prev, registrant_name: e.target.value }))}
+                                        placeholder="담당자명을 입력하세요"
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">회원 구분 *</label>
+                                    <select
+                                        value={registerForm.member_type}
+                                        onChange={(e) => setRegisterForm(prev => ({ ...prev, member_type: e.target.value }))}
+                                        className="w-full pl-3 sm:pl-4 pr-12 sm:pr-16 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
+                                    >
+                                        <option value="일반 회원">일반 회원</option>
+                                        <option value="트레이너">트레이너</option>
+                                        <option value="서포터즈">서포터즈</option>
+                                        <option value="일일권 협찬">일일권 협찬</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">성별</label>
+                                    <select
+                                        value={registerForm.gender}
+                                        onChange={(e) => setRegisterForm(prev => ({ ...prev, gender: e.target.value }))}
+                                        className="w-full pl-3 sm:pl-4 pr-12 sm:pr-16 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
+                                    >
+                                        <option value="">성별을 선택하세요</option>
+                                        <option value="남성">남성</option>
+                                        <option value="여성">여성</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">생년월일</label>
+                                    <input
+                                        type="date"
+                                        value={registerForm.birth}
+                                        onChange={(e) => setRegisterForm(prev => ({ ...prev, birth: e.target.value }))}
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* 오른쪽 컬럼 */}
+                            <div className="space-y-3 sm:space-y-4">
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">전화번호</label>
+                                    <input
+                                        type="tel"
+                                        value={registerForm.phone}
+                                        onChange={(e) => {
+                                            let value = e.target.value.replace(/[^0-9]/g, ''); // 숫자만 추출
+                                            if (value.length >= 10) {
+                                                if (value.length === 10) {
+                                                    value = value.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+                                                } else if (value.length === 11) {
+                                                    value = value.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+                                                }
+                                            }
+                                            setRegisterForm(prev => ({ ...prev, phone: value }));
+                                        }}
+                                        placeholder="010-1234-5678"
+                                        maxLength={13}
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">등록 잔 개수 *</label>
+                                    <input
+                                        type="number"
+                                        value={registerForm.total_count}
+                                        onChange={(e) => setRegisterForm(prev => ({ ...prev, total_count: e.target.value }))}
+                                        placeholder="잔 개수를 입력하세요"
+                                        min="1"
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">바코드 번호 *</label>
+                                    <input
+                                        type="text"
+                                        value={registerForm.barcode}
+                                        onChange={(e) => setRegisterForm(prev => ({ ...prev, barcode: e.target.value }))}
+                                        placeholder="7자리를 입력하세요"
+                                        maxLength={7}
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 sm:mt-6">
+                            <button
+                                onClick={handleRegisterSubmit}
+                                disabled={isRegisterSubmitting || !registerForm.name.trim() || !registerForm.registrant_name.trim() || !registerForm.total_count.trim() || !registerForm.barcode.trim()}
+                                className="w-full bg-mainRed text-white py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base lg:text-lg font-medium"
+                            >
+                                {isRegisterSubmitting ? '저장 중...' : '저장'}
                             </button>
                         </div>
                     </div>

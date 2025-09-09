@@ -82,7 +82,7 @@ const StockPage = () => {
 
     // 필터링된 로그 데이터 (ID 기준 오름차순)
     const filteredLogs = selectedLogStore === "전체 로그"
-        ? stockLogs.sort((a, b) => a.id - b.id)
+        ? stockLogs.sort((a, b) => b.id - a.id)
         : stockLogs.filter(log => log.store_name === selectedLogStore).sort((a, b) => a.id - b.id);
 
     // 재고 페이지네이션
@@ -445,7 +445,7 @@ const StockPage = () => {
 
                 {/* 재고 로그 요약 */}
                 <div className="mb-4 sm:mb-6">
-                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">재고 충전 로그 ({filteredLogs.length})</h2>
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">재고 충전 ({filteredLogs.length})</h2>
                 </div>
 
                 {/* 재고 로그 테이블 */}
@@ -471,7 +471,7 @@ const StockPage = () => {
                                         </td>
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
                                             <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none truncate">
-                                                {log.product_name || `제품 ID: ${log.product_id}`}
+                                                {log.product_name?.replace("\\n", " ") || `제품 ID: ${log.product_id}`}
                                             </div>
                                         </td>
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
