@@ -172,7 +172,7 @@ const CustomerPage = () => {
         
         // 가장 최근 멤버십의 이용현황
         const latestMembership = member.memberships[member.memberships.length - 1];
-        return `${latestMembership.remain_count}/${latestMembership.total_count}`;
+        return `${latestMembership.total_count - latestMembership.remain_count}/${latestMembership.total_count}`;
     };
 
     // 환불 시간 포맷팅 함수
@@ -484,7 +484,7 @@ const CustomerPage = () => {
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">생년월일</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">전화번호</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">결제일시</th>
-                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">이용 현황</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">멤버십 현황</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">환불</th>
                             </tr>
                         </thead>
