@@ -57,6 +57,8 @@ const ErrorLogPage = () => {
                 return '세계대학조정대회';
             case 20259764:
                 return '머슬비치';
+            case 20252354:
+                return '인트로피트니스';
             case 20258575:
                 return '멋짐';
             default:
