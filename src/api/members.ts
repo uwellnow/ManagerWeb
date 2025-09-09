@@ -42,5 +42,22 @@ export const membersApi = {
   // 환불 로그 조회
   getRefunds: async (): Promise<RefundsResponseDto> => {
     return apiClient.get<RefundsResponseDto>('/member/refunds');
+  },
+
+  // 회원 등록
+  registerMember: async (memberData: {
+    phone: string;
+    name: string;
+    registrant_name: string;
+    member_type: string;
+    birth: string;
+    gender: string;
+    registration_date: string;
+    barcode: string;
+    membership_name: string;
+    total_count: number;
+    remain_count: number;
+  }): Promise<void> => {
+    return apiClient.post('/users/membership', memberData);
   }
 };
