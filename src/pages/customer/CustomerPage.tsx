@@ -380,8 +380,18 @@ const CustomerPage = () => {
             setRefunds(refundsData.refunds);
             
             alert("회원 등록이 완료되었습니다.");
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to register member:', error);
+            
+            // 400 에러이고 중복 바코드 관련 에러인 경우
+            if (error?.response?.status === 400) {
+                const errorMessage = error?.response?.data?.detail || error?.response?.data?.message || '';
+                if (errorMessage.includes('바코드') || errorMessage.includes('barcode') || errorMessage.includes('이미 존재')) {
+                    alert('이미 존재하는 번호입니다. 다른 번호를 입력하세요');
+                    return;
+                }
+            }
+            
             alert("회원 등록에 실패했습니다. 다시 시도해주세요.");
         } finally {
             setIsRegisterSubmitting(false);
