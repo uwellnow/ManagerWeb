@@ -53,6 +53,11 @@ const CustomerPage = () => {
             try {
                 setIsLoading(true);
                 setIsError(false);
+                
+                // 먼저 회원 동기화 API 호출
+                await membersApi.syncMembers();
+                
+                // 그 다음 회원 데이터 조회
                 const data = await membersApi.getMembers();
                 // 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
                 const membersWithMemberships = data.members.filter(member => member.memberships && member.memberships.length > 0);
@@ -249,7 +254,8 @@ const CustomerPage = () => {
             // 성공 시 모달 닫고 데이터 새로고침
             handleCloseRefundModal();
             
-            // 데이터 새로고침
+            // 데이터 새로고침 (동기화 후 데이터 조회)
+            await membersApi.syncMembers();
             const [membersData, refundsData] = await Promise.all([
                 membersApi.getMembers(),
                 membersApi.getRefunds()
@@ -368,7 +374,8 @@ const CustomerPage = () => {
             // 성공 시 모달 닫고 데이터 새로고침
             handleCloseRegisterModal();
             
-            // 데이터 새로고침
+            // 데이터 새로고침 (동기화 후 데이터 조회)
+            await membersApi.syncMembers();
             const [membersData, refundsData] = await Promise.all([
                 membersApi.getMembers(),
                 membersApi.getRefunds()

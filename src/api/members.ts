@@ -59,5 +59,10 @@ export const membersApi = {
     remain_count: number;
   }): Promise<void> => {
     return apiClient.post('/users/membership', memberData);
+  },
+
+  // 회원 동기화
+  syncMembers: async (): Promise<void> => {
+    return apiClient.post('/members/sync');
   }
 };
