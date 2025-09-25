@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { membersApi } from "../../api/members";
 import type { Member, RefundLog } from "../../types/DTO/MemberResponseDto";
+import { exportMembersToExcel } from "../../utils/excelExport";
 
 const CustomerPage = () => {
     const { isAuthenticated } = useAuth();
@@ -371,6 +372,12 @@ const CustomerPage = () => {
         });
     };
 
+    // 엑셀 다운로드 핸들러
+    const handleExcelDownload = () => {
+        const currentCategory = selectedMemberType === "일반 회원" ? selectedGeneralMemberType : selectedMemberType;
+        exportMembersToExcel(filteredMembers, currentCategory);
+    };
+
     const handleRegisterSubmit = async () => {
         // 필수 필드 검증
         if (!registerForm.name.trim()) {
@@ -559,8 +566,16 @@ const CustomerPage = () => {
                     ))}
                 </div>
                 
-                {/* 수동 회원 등록 버튼 */}
-                <div className="flex justify-center lg:justify-end">
+                {/* 버튼들 */}
+                <div className="flex justify-center lg:justify-end gap-2 sm:gap-3">
+                    <button 
+                        onClick={handleExcelDownload}
+                        className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-transparent text-black rounded-lg border border-gray-800 sm:rounded-xl hover:bg-gray-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        엑셀 다운로드
+                    </button>
                     <button 
                         onClick={handleRegisterClick}
                         className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-transparent text-black rounded-lg border border-gray-800 sm:rounded-xl hover:bg-gray-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm flex items-center gap-2">
