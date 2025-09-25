@@ -138,6 +138,7 @@ const CustomerPage = () => {
 
     // 일반 회원 필터링 모달 핸들러들
     const handleGeneralMemberClick = () => {
+        setSelectedGeneralMemberType("일반 회원"); // 하위 선택 상태 초기화
         setIsGeneralMemberModalOpen(true);
     };
 
@@ -534,7 +535,16 @@ const CustomerPage = () => {
                                     handleGeneralMemberClick();
                                 } else {
                                     setSelectedMemberType(memberType);
+                                    setSelectedGeneralMemberType("일반 회원"); // 일반 회원 하위 선택 상태 초기화
                                     setCurrentPage(1);
+                                    
+                                    // 다른 카테고리 선택 시 allMembers에서 필터링
+                                    if (memberType === "전체 회원") {
+                                        setMembers(allMembers);
+                                    } else {
+                                        const filteredData = allMembers.filter(member => getMemberType(member) === memberType);
+                                        setMembers(filteredData);
+                                    }
                                 }
                             }}
                             className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
