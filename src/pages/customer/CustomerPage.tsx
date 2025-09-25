@@ -9,7 +9,8 @@ import type { Member, RefundLog } from "../../types/DTO/MemberResponseDto";
 const CustomerPage = () => {
     const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
-    const [members, setMembers] = useState<Member[]>([]);
+    const [allMembers, setAllMembers] = useState<Member[]>([]); // 전체 회원 데이터
+    const [members, setMembers] = useState<Member[]>([]); // 현재 표시되는 회원 데이터
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
@@ -23,6 +24,10 @@ const CustomerPage = () => {
     const [refunds, setRefunds] = useState<RefundLog[]>([]);
     const [isRefundsLoading, setIsRefundsLoading] = useState(true);
     const [isRefundsError, setIsRefundsError] = useState(false);
+    
+    // 일반 회원 필터링 모달 상태
+    const [isGeneralMemberModalOpen, setIsGeneralMemberModalOpen] = useState(false);
+    const [selectedGeneralMemberType, setSelectedGeneralMemberType] = useState<string>("일반 회원");
     
     // 회원 등록 모달 상태
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -59,7 +64,11 @@ const CustomerPage = () => {
                 
                 // 그 다음 회원 데이터 조회
                 const data = await membersApi.getMembers();
-                // 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
+                // 전체 회원 데이터 저장 (필터링 없이)
+                const sortedAllMembers = data.members.sort((a, b) => b.id - a.id);
+                setAllMembers(sortedAllMembers);
+                
+                // 기본적으로 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
                 const membersWithMemberships = data.members.filter(member => member.memberships && member.memberships.length > 0);
                 const sortedMembers = membersWithMemberships.sort((a, b) => b.id - a.id);
                 setMembers(sortedMembers);
@@ -96,6 +105,12 @@ const CustomerPage = () => {
 
     // 회원 구분 결정 함수 - 데이터베이스에서 받아온 member_type 그대로 사용
     const getMemberType = (member: Member): string => {
+        // 특정 이름들은 관리자로 분류
+        const adminNames = ['하현서', '김태란', '고한결'];
+        if (adminNames.includes(member.name)) {
+            return "관리자";
+        }
+        
         // member_type이 있으면 그대로 사용 (데이터베이스 값 우선)
         if (member.member_type) {
             return member.member_type;
@@ -114,8 +129,44 @@ const CustomerPage = () => {
         if (membershipNames.some(name => name.includes("서포터즈") || name.includes("앰버서더"))) {
             return "서포터즈";
         }
+        if (membershipNames.some(name => name.includes("관리자"))) {
+            return "관리자";
+        }
         
         return "일반 회원"; // 기본값
+    };
+
+    // 일반 회원 필터링 모달 핸들러들
+    const handleGeneralMemberClick = () => {
+        setIsGeneralMemberModalOpen(true);
+    };
+
+    const handleCloseGeneralMemberModal = () => {
+        setIsGeneralMemberModalOpen(false);
+    };
+
+    const handleGeneralMemberTypeSelect = (type: string) => {
+        setSelectedGeneralMemberType(type);
+        setSelectedMemberType("일반 회원"); // 일반 회원 카테고리로 설정
+        setIsGeneralMemberModalOpen(false);
+        
+        // 선택된 타입에 따라 필터링
+        let filteredData: Member[] = [];
+        
+        if (type === "일반 회원") {
+            // 필터링 없이 전체 회원 데이터
+            filteredData = allMembers;
+        } else if (type === "멤버십 구매 회원") {
+            // 멤버십이 있는 회원만
+            filteredData = allMembers.filter(member => member.memberships && member.memberships.length > 0);
+        } else if (type === "회원가입만") {
+            // 일반 회원 중에 멤버십 구매 회원을 뺀 사람
+            const membersWithMemberships = allMembers.filter(member => member.memberships && member.memberships.length > 0);
+            filteredData = allMembers.filter(member => !membersWithMemberships.some(m => m.id === member.id));
+        }
+        
+        setMembers(filteredData);
+        setCurrentPage(1);
     };
 
     // 회원 구분별 필터링
@@ -260,10 +311,25 @@ const CustomerPage = () => {
                 membersApi.getMembers(),
                 membersApi.getRefunds()
             ]);
-            // 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
-            const membersWithMemberships = membersData.members.filter(member => member.memberships && member.memberships.length > 0);
-            const sortedMembers = membersWithMemberships.sort((a, b) => b.id - a.id);
-            setMembers(sortedMembers);
+            // 전체 회원 데이터 저장 (필터링 없이)
+            const sortedAllMembers = membersData.members.sort((a, b) => b.id - a.id);
+            setAllMembers(sortedAllMembers);
+            
+            // 현재 선택된 필터에 따라 데이터 설정
+            if (selectedGeneralMemberType === "일반 회원") {
+                setMembers(sortedAllMembers);
+            } else if (selectedGeneralMemberType === "멤버십 구매 회원") {
+                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
+                setMembers(membersWithMemberships);
+            } else if (selectedGeneralMemberType === "회원가입만") {
+                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
+                const membersWithoutMemberships = sortedAllMembers.filter(member => !membersWithMemberships.some(m => m.id === member.id));
+                setMembers(membersWithoutMemberships);
+            } else {
+                // 기본적으로 멤버십이 있는 회원만 필터링
+                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
+                setMembers(membersWithMemberships);
+            }
             setRefunds(refundsData.refunds);
             
             alert("환불이 완료되었습니다.");
@@ -357,16 +423,20 @@ const CustomerPage = () => {
             // 성별을 M/F로 변환
             const genderCode = registerForm.gender === '남성' ? 'M' : 'F';
             
+            // 특정 이름들은 자동으로 관리자로 설정
+            const adminNames = ['하현서', '김태란', '고한결'];
+            const finalMemberType = adminNames.includes(registerForm.name) ? '관리자' : registerForm.member_type;
+            
             await membersApi.registerMember({
                 phone: registerForm.phone,
                 name: registerForm.name,
                 registrant_name: registerForm.registrant_name,
-                member_type: registerForm.member_type,
+                member_type: finalMemberType,
                 birth: registerForm.birth,
                 gender: genderCode,
                 registration_date: registrationDate,
                 barcode: registerForm.barcode,
-                membership_name: registerForm.member_type,
+                membership_name: finalMemberType,
                 total_count: parseInt(registerForm.total_count),
                 remain_count: parseInt(registerForm.total_count) // remain_count = total_count
             });
@@ -380,10 +450,25 @@ const CustomerPage = () => {
                 membersApi.getMembers(),
                 membersApi.getRefunds()
             ]);
-            // 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
-            const membersWithMemberships = membersData.members.filter(member => member.memberships && member.memberships.length > 0);
-            const sortedMembers = membersWithMemberships.sort((a, b) => b.id - a.id);
-            setMembers(sortedMembers);
+            // 전체 회원 데이터 저장 (필터링 없이)
+            const sortedAllMembers = membersData.members.sort((a, b) => b.id - a.id);
+            setAllMembers(sortedAllMembers);
+            
+            // 현재 선택된 필터에 따라 데이터 설정
+            if (selectedGeneralMemberType === "일반 회원") {
+                setMembers(sortedAllMembers);
+            } else if (selectedGeneralMemberType === "멤버십 구매 회원") {
+                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
+                setMembers(membersWithMemberships);
+            } else if (selectedGeneralMemberType === "회원가입만") {
+                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
+                const membersWithoutMemberships = sortedAllMembers.filter(member => !membersWithMemberships.some(m => m.id === member.id));
+                setMembers(membersWithoutMemberships);
+            } else {
+                // 기본적으로 멤버십이 있는 회원만 필터링
+                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
+                setMembers(membersWithMemberships);
+            }
             setRefunds(refundsData.refunds);
             
             alert("회원 등록이 완료되었습니다.");
@@ -441,15 +526,20 @@ const CustomerPage = () => {
             <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-4">
                 {/* 회원 구분 선택 탭 */}
                 <div className="flex flex-wrap gap-1 sm:gap-2 bg-white rounded-lg sm:rounded-xl p-1 sm:p-2 shadow-sm">
-                    {["전체 회원", "일반 회원", "트레이너", "서포터즈", "일일권 협찬"].map((memberType) => (
+                    {["전체 회원", "일반 회원", "트레이너", "서포터즈", "일일권 협찬", "관리자"].map((memberType) => (
                         <button
                             key={memberType}
                             onClick={() => {
-                                setSelectedMemberType(memberType);
-                                setCurrentPage(1);
+                                if (memberType === "일반 회원") {
+                                    handleGeneralMemberClick();
+                                } else {
+                                    setSelectedMemberType(memberType);
+                                    setCurrentPage(1);
+                                }
                             }}
                             className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
-                                selectedMemberType === memberType
+                                (memberType === "일반 회원" && selectedMemberType === "일반 회원") || 
+                                (memberType !== "일반 회원" && selectedMemberType === memberType)
                                     ? 'bg-mainRed text-white shadow-sm'
                                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                             }`}
@@ -475,7 +565,7 @@ const CustomerPage = () => {
             {/* 회원 요약 */}
             <div className="mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-                    {selectedMemberType} ({filteredMembers.length})
+                    {selectedMemberType === "일반 회원" ? selectedGeneralMemberType : selectedMemberType} ({filteredMembers.length})
                 </h2>
             </div>
 
@@ -773,6 +863,54 @@ const CustomerPage = () => {
                 </div>
             )}
 
+            {/* 일반 회원 필터링 모달 */}
+            {isGeneralMemberModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
+                        <div className="flex justify-between items-center mb-4 sm:mb-6">
+                            <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">일반 회원 필터링</h3>
+                            <button
+                                onClick={handleCloseGeneralMemberModal}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 sm:space-y-4">
+                            <p className="text-sm sm:text-base text-gray-600 mb-4">
+                                표시할 회원 유형을 선택하세요:
+                            </p>
+                            
+                            {["일반 회원", "회원가입만", "멤버십 구매 회원"].map((type) => (
+                                <button
+                                    key={type}
+                                    onClick={() => handleGeneralMemberTypeSelect(type)}
+                                    className={`w-full px-4 py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors ${
+                                        selectedGeneralMemberType === type
+                                            ? 'bg-mainRed text-white shadow-sm'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    {type}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="mt-4 sm:mt-6">
+                            <button
+                                onClick={handleCloseGeneralMemberModal}
+                                className="w-full bg-gray-300 text-gray-700 py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl hover:bg-gray-400 transition-colors text-sm sm:text-base lg:text-lg font-medium"
+                            >
+                                취소
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 회원 등록 모달 */}
             {isRegisterModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -825,6 +963,7 @@ const CustomerPage = () => {
                                         <option value="트레이너">트레이너</option>
                                         <option value="서포터즈">서포터즈</option>
                                         <option value="일일권 협찬">일일권 협찬</option>
+                                        <option value="관리자">관리자</option>
                                     </select>
                                 </div>
 
