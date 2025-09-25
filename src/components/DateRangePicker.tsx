@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
 
+// 한국 시간대 기준으로 오늘 날짜를 YYYY-MM-DD 형식으로 반환
+const getKoreanToday = (): string => {
+    const now = new Date();
+    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+    return koreanTime.toISOString().split('T')[0];
+};
+
 interface DateRange {
     startDate: string;
     endDate: string;
@@ -23,11 +30,13 @@ const DateRangePicker = ({ isOpen, onClose, onDateRangeSelect, currentRange }: D
             setSelectedStartDate(currentRange.startDate);
             setSelectedEndDate(currentRange.endDate);
             setIsSelecting('start');
+            // 시작 날짜를 기준으로 현재 월 설정 (한국 시간대로 파싱)
+            const [year, month, day] = currentRange.startDate.split('-').map(Number);
+            setCurrentMonth(new Date(year, month - 1, day));
         }
     }, [isOpen, currentRange]);
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getKoreanToday();
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -53,7 +62,9 @@ const DateRangePicker = ({ isOpen, onClose, onDateRangeSelect, currentRange }: D
     };
 
     const formatDate = (date: Date) => {
-        return date.toISOString().split('T')[0];
+        // 한국 시간대 기준으로 날짜 포맷팅
+        const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+        return koreanTime.toISOString().split('T')[0];
     };
 
     const isDateInRange = (date: Date) => {
@@ -149,21 +160,31 @@ const DateRangePicker = ({ isOpen, onClose, onDateRangeSelect, currentRange }: D
                     <div className="text-base font-medium text-gray-900">
                         {selectedStartDate && selectedEndDate ? (
                             selectedStartDate === selectedEndDate ? (
-                                new Date(selectedStartDate).toLocaleDateString('ko-KR', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })
+                                (() => {
+                                    const [year, month, day] = selectedStartDate.split('-').map(Number);
+                                    const date = new Date(year, month - 1, day);
+                                    return date.toLocaleDateString('ko-KR', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                    });
+                                })()
                             ) : (
-                                `${new Date(selectedStartDate).toLocaleDateString('ko-KR', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })} ~ ${new Date(selectedEndDate).toLocaleDateString('ko-KR', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })}`
+                                (() => {
+                                    const [startYear, startMonth, startDay] = selectedStartDate.split('-').map(Number);
+                                    const [endYear, endMonth, endDay] = selectedEndDate.split('-').map(Number);
+                                    const startDate = new Date(startYear, startMonth - 1, startDay);
+                                    const endDate = new Date(endYear, endMonth - 1, endDay);
+                                    return `${startDate.toLocaleDateString('ko-KR', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                    })} ~ ${endDate.toLocaleDateString('ko-KR', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                    })}`;
+                                })()
                             )
                         ) : (
                             '기간을 선택해주세요'

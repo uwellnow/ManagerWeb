@@ -26,7 +26,9 @@ const Header = ({ onMenuClick }: HeaderProps) => {
     const isOrderPage = location.pathname === '/order';
     
     const formatDateForDisplay = (dateString: string) => {
-        const date = new Date(dateString);
+        // YYYY-MM-DD 형식의 문자열을 한국 시간대로 파싱
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
         return date.toLocaleDateString('ko-KR', {
             year: 'numeric',
             month: 'long',

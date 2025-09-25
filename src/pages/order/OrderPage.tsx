@@ -51,7 +51,10 @@ const OrderPage = () => {
                 } else {
                     // 선택된 기간으로 필터링
                     const dateFilteredOrders = filteredData.filter(order => {
-                        const orderDate = new Date(order.order_time).toISOString().split('T')[0];
+                        // 한국 시간대 기준으로 날짜 추출
+                        const orderDateTime = new Date(order.order_time);
+                        const koreanTime = new Date(orderDateTime.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+                        const orderDate = koreanTime.toISOString().split('T')[0];
                         const matchesDate = orderDate >= dateRange.startDate && orderDate <= dateRange.endDate;
                         if (order.store_name === '세계대학조정대회') { // Debug log
                             console.log('세계대학조정대회 order:', order, 'date:', orderDate, 'dateRange:', dateRange, 'matches:', matchesDate);

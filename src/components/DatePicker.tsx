@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
 
+// 한국 시간대 기준으로 오늘 날짜를 YYYY-MM-DD 형식으로 반환
+const getKoreanToday = (): string => {
+    const now = new Date();
+    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+    return koreanTime.toISOString().split('T')[0];
+};
+
 interface DatePickerProps {
     isOpen: boolean;
     onClose: () => void;
@@ -14,12 +21,13 @@ const DatePicker = ({ isOpen, onClose, onDateSelect, currentDate }: DatePickerPr
     useEffect(() => {
         if (isOpen) {
             setSelectedDate(currentDate);
-            setCurrentMonth(new Date(currentDate));
+            // YYYY-MM-DD 형식의 문자열을 한국 시간대로 파싱
+            const [year, month, day] = currentDate.split('-').map(Number);
+            setCurrentMonth(new Date(year, month - 1, day));
         }
     }, [isOpen, currentDate]);
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getKoreanToday();
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -45,7 +53,9 @@ const DatePicker = ({ isOpen, onClose, onDateSelect, currentDate }: DatePickerPr
     };
 
     const formatDate = (date: Date) => {
-        return date.toISOString().split('T')[0];
+        // 한국 시간대 기준으로 날짜 포맷팅
+        const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+        return koreanTime.toISOString().split('T')[0];
     };
 
     const isDateSelected = (date: Date) => {
@@ -55,6 +65,7 @@ const DatePicker = ({ isOpen, onClose, onDateSelect, currentDate }: DatePickerPr
 
     const isDateDisabled = (date: Date) => {
         const dateStr = formatDate(date);
+        // 한국 시간대 기준으로 오늘 날짜와 비교
         return dateStr > todayStr;
     };
 
@@ -118,12 +129,16 @@ const DatePicker = ({ isOpen, onClose, onDateSelect, currentDate }: DatePickerPr
                     <div className="text-sm text-gray-600 mb-1">선택된 날짜</div>
                     <div className="text-base font-medium text-gray-900">
                         {selectedDate ? (
-                            new Date(selectedDate).toLocaleDateString('ko-KR', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                weekday: 'long'
-                            })
+                            (() => {
+                                const [year, month, day] = selectedDate.split('-').map(Number);
+                                const date = new Date(year, month - 1, day);
+                                return date.toLocaleDateString('ko-KR', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    weekday: 'long'
+                                });
+                            })()
                         ) : (
                             '날짜를 선택해주세요'
                         )}
