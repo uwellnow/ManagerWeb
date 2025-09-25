@@ -106,9 +106,11 @@ const CustomerPage = () => {
 
     // 회원 구분 결정 함수 - 데이터베이스에서 받아온 member_type 그대로 사용
     const getMemberType = (member: Member): string => {
-        // 특정 이름들은 관리자로 분류
-        const adminNames = ['하현서', '김태란', '고한결'];
-        if (adminNames.includes(member.name)) {
+        // 특정 전화번호들은 관리자로 분류 (하이픈 없는 형식)
+        const adminPhones = [
+            '01056124767', '01085172296', '01027455601', '01020412103', '01043200842'
+        ];
+        if (adminPhones.includes(member.phone)) {
             return "관리자";
         }
         
@@ -431,9 +433,12 @@ const CustomerPage = () => {
             // 성별을 M/F로 변환
             const genderCode = registerForm.gender === '남성' ? 'M' : 'F';
             
-            // 특정 이름들은 자동으로 관리자로 설정
-            const adminNames = ['하현서', '김태란', '고한결'];
-            const finalMemberType = adminNames.includes(registerForm.name) ? '관리자' : registerForm.member_type;
+            // 특정 전화번호들은 자동으로 관리자로 설정 (하이픈 있는 형식과 없는 형식 모두 포함)
+            const adminPhones = [
+                '010-5612-4767', '010-8517-2296', '010-2745-5601', '010-2041-2103', '010-4320-0842',
+                '01056124767', '01085172296', '01027455601', '01020412103', '01043200842'
+            ];
+            const finalMemberType = adminPhones.includes(registerForm.phone) ? '관리자' : registerForm.member_type;
             
             await membersApi.registerMember({
                 phone: registerForm.phone,

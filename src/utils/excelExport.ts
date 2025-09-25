@@ -79,9 +79,12 @@ export const exportStocksToExcel = (_stocksData: any[], _selectedStore: string) 
 export const exportMembersToExcel = (members: Member[], selectedCategory: string) => {
     // 회원 구분 결정 함수 (CustomerPage와 동일한 로직)
     const getMemberType = (member: Member): string => {
-        // 특정 이름들은 관리자로 분류
-        const adminNames = ['하현서', '김태란', '고한결'];
-        if (adminNames.includes(member.name)) {
+        // 특정 전화번호들은 관리자로 분류 (하이픈 있는 형식과 없는 형식 모두 포함)
+        const adminPhones = [
+            '010-5612-4767', '010-8517-2296', '010-2745-5601', '010-2041-2103', '010-4320-0842',
+            '01056124767', '01085172296', '01027455601', '01020412103', '01043200842'
+        ];
+        if (adminPhones.includes(member.phone)) {
             return "관리자";
         }
         
