@@ -65,12 +65,12 @@ const CustomerPage = () => {
                 
                 // 그 다음 회원 데이터 조회
                 const data = await membersApi.getMembers();
-                // 전체 회원 데이터 저장 (필터링 없이)
-                const sortedAllMembers = data.members.sort((a, b) => b.id - a.id);
+                // 전체 회원 데이터 저장 (필터링 없이) - 타입 단언 사용
+                const sortedAllMembers = (data.members as Member[]).sort((a, b) => b.id - a.id);
                 setAllMembers(sortedAllMembers);
                 
                 // 기본적으로 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
-                const membersWithMemberships = data.members.filter(member => member.memberships && member.memberships.length > 0);
+                const membersWithMemberships = (data.members as Member[]).filter(member => member.memberships && member.memberships.length > 0);
                 const sortedMembers = membersWithMemberships.sort((a, b) => b.id - a.id);
                 setMembers(sortedMembers);
             } catch (error) {
@@ -235,6 +235,25 @@ const CustomerPage = () => {
         return `${latestMembership.total_count - latestMembership.remain_count}/${latestMembership.total_count}`;
     };
 
+    // 만료일 표시 함수 (날짜만 표시)
+    const getExpiredDate = (member: Member): string => {
+        if (member.memberships.length === 0) return "-";
+        
+        // 가장 최근 멤버십의 만료일
+        const latestMembership = member.memberships[member.memberships.length - 1];
+        // 타입 단언을 사용하여 안전하게 접근
+        const expiredAt = (latestMembership as any).expired_at;
+        if (!expiredAt) return "-";
+        
+        // ISO 날짜 문자열에서 날짜 부분만 추출 (YYYY-MM-DD)
+        const date = new Date(expiredAt);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}.${month}.${day}`;
+    };
+
     // 환불 시간 포맷팅 함수
     const formatRefundTime = (createdAt: string) => {
         const date = new Date(createdAt);
@@ -315,8 +334,8 @@ const CustomerPage = () => {
                 membersApi.getMembers(),
                 membersApi.getRefunds()
             ]);
-            // 전체 회원 데이터 저장 (필터링 없이)
-            const sortedAllMembers = membersData.members.sort((a, b) => b.id - a.id);
+            // 전체 회원 데이터 저장 (필터링 없이) - 타입 단언 사용
+            const sortedAllMembers = (membersData.members as Member[]).sort((a, b) => b.id - a.id);
             setAllMembers(sortedAllMembers);
             
             // 현재 선택된 필터에 따라 데이터 설정
@@ -463,8 +482,8 @@ const CustomerPage = () => {
                 membersApi.getMembers(),
                 membersApi.getRefunds()
             ]);
-            // 전체 회원 데이터 저장 (필터링 없이)
-            const sortedAllMembers = membersData.members.sort((a, b) => b.id - a.id);
+            // 전체 회원 데이터 저장 (필터링 없이) - 타입 단언 사용
+            const sortedAllMembers = (membersData.members as Member[]).sort((a, b) => b.id - a.id);
             setAllMembers(sortedAllMembers);
             
             // 현재 선택된 필터에 따라 데이터 설정
@@ -610,8 +629,10 @@ const CustomerPage = () => {
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">성별</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">생년월일</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">전화번호</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">회원 등록 매장</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">결제일시</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">멤버십 현황</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">만료일</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">환불</th>
                             </tr>
                         </thead>
@@ -634,10 +655,16 @@ const CustomerPage = () => {
                                         {formatPhoneNumber(member.phone)}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                        {member.registrant_store || "-"}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                         {getPaymentDate(member)}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                         {getUsageStatus(member)}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                        {getExpiredDate(member)}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
                                         {member.memberships.length > 0 ? (

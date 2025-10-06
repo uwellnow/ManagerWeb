@@ -1,27 +1,5 @@
 import { apiClient } from './client';
-import type { RefundsResponseDto } from '../types/DTO/MemberResponseDto';
-
-// 타입을 직접 정의
-interface Membership {
-  id: number;
-  barcode: string;
-  name: string;
-  remain_count: number;
-  total_count: number;
-}
-
-interface Member {
-  id: number;
-  name: string;
-  phone: string;
-  birth: string | null;
-  gender: string | null;
-  memberships: Membership[];
-}
-
-interface MembersResponseDto {
-  members: Member[];
-}
+import type { RefundsResponseDto, MembersResponseDto } from '../types/DTO/MemberResponseDto';
 
 export const membersApi = {
   // 회원 목록 조회

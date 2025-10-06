@@ -4,6 +4,8 @@ export interface Membership {
   name: string;
   remain_count: number;
   total_count: number;
+  created_at?: string;
+  expired_at?: string;
 }
 
 export interface Member {
@@ -13,6 +15,7 @@ export interface Member {
   birth: string | null;
   gender: string | null;
   member_type?: string;
+  registrant_store?: string;
   memberships: Membership[];
 }
 
