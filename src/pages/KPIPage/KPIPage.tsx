@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { ordersApi } from "../../api/orders";
+import { membersApi } from "../../api/members";
 import {
     exportRetentionKPIToExcel,
     exportBasicKPIToExcel,
-    calculateBasicKPI,
+    calculateBasicKPI, generateCohortRetentionSummary,
 } from "../../utils/excelExport.kpi";
 import type { OrderData } from "../../types/DTO/OrderResponseDto";
+import type { Member } from "../../types/DTO/MemberResponseDto";
 
 type KPIType = "리텐션" | "활성드링커" | "평균마진" | "LTV" | "CAC";
 
@@ -21,16 +23,64 @@ const KPIPage = () => {
     const [resultData, setResultData] = useState<any[]>([]);
     const [summaryData, setSummaryData] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [cohortSummary, setCohortSummary] = useState<any[]>([]);
 
     // 주문 데이터 불러오기
     useEffect(() => {
         const fetchOrders = async () => {
             try {
                 setIsLoading(true);
+                
+                // 먼저 회원 데이터를 가져와서 일반 회원 목록 추출
+                const membersData = await membersApi.getMembers();
+                const generalMemberNames = new Set<string>();
+                
+                (membersData.members as Member[]).forEach(member => {
+                    // 특정 전화번호들은 관리자로 분류하여 제외
+                    const adminPhones = [
+                        '01056124767', '01085172296', '01027455601', '01020412103', '01043200842'
+                    ];
+                    if (adminPhones.includes(member.phone)) {
+                        return;
+                    }
+                    
+                    // member_type이 있으면 그대로 사용
+                    if (member.member_type) {
+                        if (member.member_type === "일반 회원") {
+                            generalMemberNames.add(member.name);
+                        }
+                        return;
+                    }
+                    
+                    // member_type이 없는 경우 멤버십 이름으로 구분
+                    if (member.memberships.length === 0) {
+                        generalMemberNames.add(member.name); // 기본값은 일반 회원
+                        return;
+                    }
+                    
+                    const membershipNames = member.memberships.map(m => m.name);
+                    
+                    // 트레이너, 서포터즈, 관리자는 제외
+                    const isSpecialMember = membershipNames.some(name => 
+                        name.includes("트레이너") || 
+                        name.includes("서포터즈") || 
+                        name.includes("앰버서더") || 
+                        name.includes("관리자")
+                    );
+                    
+                    if (!isSpecialMember) {
+                        generalMemberNames.add(member.name); // 나머지는 일반 회원
+                    }
+                });
+                
+                // 주문 데이터를 가져와서 일반 회원의 주문만 필터링
                 const data = await ordersApi.getOrders();
                 const filtered = data.filter(
                     (o: OrderData) =>
-                        o.store_name !== "테스트용" && o.user_name !== "고한결" && o.user_name !== "트레이너" && o.user_name !== null && o.user_name !== "테스트" && o.user_name !== "인트로피트니스"
+                        o.store_name !== "테스트용" && 
+                        o.user_name !== null && 
+                        o.user_name !== "테스트" && 
+                        generalMemberNames.has(o.user_name) // 일반 회원의 주문만 포함
                 );
                 setOrders(filtered);
             } catch (e) {
@@ -77,7 +127,7 @@ const KPIPage = () => {
         const firstDate = new Date(user.first_visit);
         const dayStatus: Record<string, string> = {};
 
-        for (let day = 0; day <= 22; day++) {
+        for (let day = 0; day <= 70; day++) {
             const target = new Date(firstDate);
             target.setDate(firstDate.getDate() + day);
             const dateStr = target.toISOString().split("T")[0];
@@ -87,7 +137,7 @@ const KPIPage = () => {
         }
 
         const totalVisits = user.visit_dates.length;
-        const retentionDays = [7, 14, 21];
+        const retentionDays = Array.from({ length: 3 }, (_, i) => (i + 1) * 7);
         const retainedCount = retentionDays.filter(
             (d) => dayStatus[`Day${d}`] === "이용"
         ).length;
@@ -104,37 +154,36 @@ const KPIPage = () => {
     const generateRetentionTable = (orders: OrderData[]) => {
         const users = groupByUserForRetention(orders);
         return users.map((u) => makeRetentionRow(u));
+
     };
     // -----------------------------------------------------
 
     const handleGenerateKPI = () => {
         if (selectedKPI === "리텐션") {
-            const table = generateRetentionTable(filteredOrders);
-            setResultData(table);
+            const userTable = generateRetentionTable(filteredOrders);
+            const cohort = generateCohortRetentionSummary(filteredOrders);
+
+            setResultData(userTable);
+            setCohortSummary(cohort);
             setSummaryData(null);
-        } else if (selectedKPI === "활성드링커" || selectedKPI === "평균마진") {
+        }
+        else if (selectedKPI === "활성드링커" || selectedKPI === "평균마진") {
             const summary = calculateBasicKPI(filteredOrders);
             setSummaryData(summary);
             setResultData([
                 { 항목: "활성 드링커 수", 값: summary.activeUserCount },
-                {
-                    항목: "활성 드링커 1인당 평균 이용 컵 수",
-                    값: summary.avgCupsPerActive.toFixed(2),
-                },
+                { 항목: "활성 드링커 1인당 평균 이용 컵 수", 값: summary.avgCupsPerActive.toFixed(2) },
                 { 항목: "총 판매 컵 수", 값: summary.totalOrders },
-                {
-                    항목: "한 잔당 평균 마진(원)",
-                    값: summary.avgMarginPerCup.toFixed(1),
-                },
+                { 항목: "한 잔당 평균 마진(원)", 값: summary.avgMarginPerCup.toFixed(1) },
             ]);
         }
     };
 
     const handleExcelDownload = () => {
         if (selectedKPI === "리텐션") {
-            exportRetentionKPIToExcel(filteredOrders, dateRange);
+            exportRetentionKPIToExcel(filteredOrders, dateRange, selectedUser);
         } else if (selectedKPI === "활성드링커" || selectedKPI === "평균마진") {
-            exportBasicKPIToExcel(filteredOrders, dateRange, selectedKPI);
+            exportBasicKPIToExcel(filteredOrders, dateRange, selectedKPI, selectedUser);
         } else {
             alert("현재 선택한 KPI는 엑셀 내보내기가 지원되지 않습니다.");
         }
@@ -224,41 +273,71 @@ const KPIPage = () => {
             {resultData.length > 0 && (
                 <div className="bg-white p-4 rounded-xl shadow overflow-x-auto space-y-8">
                     {selectedKPI === "리텐션" ? (
-                        <table className="min-w-full border text-sm text-center">
-                            <thead className="bg-gray-100">
-                            <tr>
-                                <th className="border px-2 py-1">사용자</th>
-                                {Array.from({ length: 23 }, (_, i) => (
-                                    <th key={i} className="border px-2 py-1">{`Day${i}`}</th>
-                                ))}
-                                <th className="border px-2 py-1">이용횟수</th>
-                                <th className="border px-2 py-1">리텐션</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {resultData.map((row, idx) => (
-                                <tr key={idx}>
-                                    <td className="border px-2 py-1">{row["사용자"]}</td>
-                                    {Array.from({ length: 23 }, (_, i) => (
-                                        <td
-                                            key={i}
-                                            className={`border px-2 py-1 ${
-                                                row[`Day${i}`] === "이용"
-                                                    ? "bg-red-50 text-red-700"
-                                                    : "text-gray-400"
-                                            }`}
-                                        >
-                                            {row[`Day${i}`]}
-                                        </td>
+                        <div className="space-y-8">
+                            <table className="min-w-full border text-sm text-center">
+                                {/* 개인 리텐션 테이블 */}
+                                <thead className="bg-gray-100">
+                                <tr>
+                                    <th className="border px-2 py-1">사용자</th>
+                                    {Array.from({ length: 71 }, (_, i) => (
+                                        <th key={i} className="border px-2 py-1">{`Day${i}`}</th>
                                     ))}
-                                    <td className="border px-2 py-1">{row["이용횟수"]}</td>
-                                    <td className="border px-2 py-1 font-semibold text-mainRed">
-                                        {row["리텐션"]}
-                                    </td>
+                                    <th className="border px-2 py-1">이용횟수</th>
+                                    <th className="border px-2 py-1">리텐션</th>
                                 </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                {resultData.map((row, idx) => (
+                                    <tr key={idx}>
+                                        <td className="border px-2 py-1">{row["사용자"]}</td>
+                                        {Array.from({ length: 71 }, (_, i) => (
+                                            <td
+                                                key={i}
+                                                className={`border px-2 py-1 ${
+                                                    row[`Day${i}`] === "이용"
+                                                        ? "bg-red-50 text-red-700"
+                                                        : "text-gray-400"
+                                                }`}
+                                            >
+                                                {row[`Day${i}`]}
+                                            </td>
+                                        ))}
+                                        <td className="border px-2 py-1">{row["이용횟수"]}</td>
+                                        <td className="border px-2 py-1 font-semibold text-mainRed">
+                                            {row["리텐션"]}
+                                        </td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+
+                            {/* ✅ 전체 리텐션 요약 테이블 */}
+                            {cohortSummary.length > 0 && (
+                                <div className="mt-8">
+                                    <h2 className="text-lg font-semibold mb-3">전체 리텐션 요약</h2>
+                                    <table className="min-w-[400px] border text-sm text-center">
+                                        <thead className="bg-gray-100">
+                                        <tr>
+                                            <th className="border px-3 py-2">Day</th>
+                                            <th className="border px-3 py-2">이용자수</th>
+                                            <th className="border px-3 py-2">리텐션율</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {cohortSummary.map((row, idx) => (
+                                            <tr key={idx}>
+                                                <td className="border px-3 py-2">{row.Day}</td>
+                                                <td className="border px-3 py-2">{row.이용자수}</td>
+                                                <td className="border px-3 py-2 font-semibold text-mainRed">
+                                                    {row.리텐션율}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
                     ) : (
                         <>
                             {/* KPI 요약 표 */}
