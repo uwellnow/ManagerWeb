@@ -152,7 +152,7 @@ const KPIPage = () => {
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
-            <h1 className="text-2xl font-bold mb-6">KPI / 리텐션 분석</h1>
+            <h1 className="text-2xl font-bold mb-6">KPI 분석</h1>
 
             {/* 필터 패널 */}
             <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl shadow-sm mb-6">
@@ -303,7 +303,7 @@ const KPIPage = () => {
                                         </tr>
                                         </thead>
                                         <tbody>
-                                        {summaryData.activeUsers.map((user, idx) => (
+                                        {summaryData.activeUsers.map((user: any , idx: number) => (
                                             <tr key={idx}>
                                                 <td className="border px-2 py-1">{user.user_name}</td>
                                                 <td className="border px-2 py-1">
@@ -345,7 +345,7 @@ const KPIPage = () => {
                                         </tr>
                                         </thead>
                                         <tbody>
-                                        {summaryData.productTable.map((p, idx) => (
+                                        {summaryData.productTable.map((p: any, idx:number) => (
                                             <tr key={idx}>
                                                 <td className="border px-2 py-1">{p.제품명.replace('\\n', ' ')}</td>
                                                 <td className="border px-2 py-1">{p.판매수량}</td>
