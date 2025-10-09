@@ -7,6 +7,7 @@ import CustomerPage from "../pages/customer/CustomerPage.tsx";
 import ErrorPage from "../pages/error/ErrorPage.tsx";
 import ErrorLogPage from "../pages/errorLog/ErrorLogPage.tsx";
 import MainLayout from "../layout/MainLayout.tsx";
+import KPIPage from "../pages/KPIPage/KPIPage.tsx";
 
 const AppRoutes = () => {
     return createBrowserRouter([
@@ -41,6 +42,10 @@ const AppRoutes = () => {
                 { 
                     path: '/error', 
                     element: <ErrorPage />
+                },
+                {
+                    path: '/kpi',
+                    element: <KPIPage />
                 },
             ]
         }
