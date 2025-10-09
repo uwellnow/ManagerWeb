@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { ordersApi } from "../../api/orders";
+import { membersApi } from "../../api/members";
 import {
     exportRetentionKPIToExcel,
     exportBasicKPIToExcel,
     calculateBasicKPI,
 } from "../../utils/excelExport.kpi";
 import type { OrderData } from "../../types/DTO/OrderResponseDto";
+import type { Member } from "../../types/DTO/MemberResponseDto";
 
 type KPIType = "리텐션" | "활성드링커" | "평균마진" | "LTV" | "CAC";
 
@@ -27,10 +29,57 @@ const KPIPage = () => {
         const fetchOrders = async () => {
             try {
                 setIsLoading(true);
+                
+                // 먼저 회원 데이터를 가져와서 일반 회원 목록 추출
+                const membersData = await membersApi.getMembers();
+                const generalMemberNames = new Set<string>();
+                
+                (membersData.members as Member[]).forEach(member => {
+                    // 특정 전화번호들은 관리자로 분류하여 제외
+                    const adminPhones = [
+                        '01056124767', '01085172296', '01027455601', '01020412103', '01043200842'
+                    ];
+                    if (adminPhones.includes(member.phone)) {
+                        return;
+                    }
+                    
+                    // member_type이 있으면 그대로 사용
+                    if (member.member_type) {
+                        if (member.member_type === "일반 회원") {
+                            generalMemberNames.add(member.name);
+                        }
+                        return;
+                    }
+                    
+                    // member_type이 없는 경우 멤버십 이름으로 구분
+                    if (member.memberships.length === 0) {
+                        generalMemberNames.add(member.name); // 기본값은 일반 회원
+                        return;
+                    }
+                    
+                    const membershipNames = member.memberships.map(m => m.name);
+                    
+                    // 트레이너, 서포터즈, 관리자는 제외
+                    const isSpecialMember = membershipNames.some(name => 
+                        name.includes("트레이너") || 
+                        name.includes("서포터즈") || 
+                        name.includes("앰버서더") || 
+                        name.includes("관리자")
+                    );
+                    
+                    if (!isSpecialMember) {
+                        generalMemberNames.add(member.name); // 나머지는 일반 회원
+                    }
+                });
+                
+                // 주문 데이터를 가져와서 일반 회원의 주문만 필터링
                 const data = await ordersApi.getOrders();
                 const filtered = data.filter(
                     (o: OrderData) =>
-                        o.store_name !== "테스트용" && o.user_name !== "고한결" && o.user_name !== "트레이너" && o.user_name !== null && o.user_name !== "테스트" && o.user_name !== "인트로피트니스"
+                        o.store_name !== "테스트용" && 
+                        o.user_name !== null && 
+                        o.user_name !== "테스트" && 
+                        generalMemberNames.has(o.user_name) // 일반 회원의 주문만 포함
                 );
                 setOrders(filtered);
             } catch (e) {
@@ -132,9 +181,9 @@ const KPIPage = () => {
 
     const handleExcelDownload = () => {
         if (selectedKPI === "리텐션") {
-            exportRetentionKPIToExcel(filteredOrders, dateRange);
+            exportRetentionKPIToExcel(filteredOrders, dateRange, selectedUser);
         } else if (selectedKPI === "활성드링커" || selectedKPI === "평균마진") {
-            exportBasicKPIToExcel(filteredOrders, dateRange, selectedKPI);
+            exportBasicKPIToExcel(filteredOrders, dateRange, selectedKPI, selectedUser);
         } else {
             alert("현재 선택한 KPI는 엑셀 내보내기가 지원되지 않습니다.");
         }

@@ -110,7 +110,8 @@ export const calculateBasicKPI = (orders: OrderData[]) => {
 // ===== 메인 Export =====
 export const exportRetentionKPIToExcel = (
     orders: OrderData[],
-    dateRange: { startDate: string; endDate: string }
+    dateRange: { startDate: string; endDate: string },
+    selectedUser?: string
 ) => {
     const users = groupByUser(orders);
     const retentionData = users.map(u => makeRetentionRow(u));
@@ -119,7 +120,9 @@ export const exportRetentionKPIToExcel = (
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "리텐션 데이터");
 
-    const fileName = `KPI_리텐션_${dateRange.startDate}_${dateRange.endDate}.xlsx`;
+    const userLabel = selectedUser && selectedUser !== "전체" ? selectedUser : "전체";
+    const fileName = `${userLabel}_리텐션_${dateRange.startDate}~${dateRange.endDate}.xlsx`;
+
     const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
     saveAs(
         new Blob([buffer], {
@@ -132,7 +135,8 @@ export const exportRetentionKPIToExcel = (
 export const exportBasicKPIToExcel = (
     orders: OrderData[],
     dateRange: { startDate: string; endDate: string },
-    selectedKPI?: "활성드링커" | "평균마진"
+    selectedKPI?: "활성드링커" | "평균마진",
+    selectedUser?: string
 ) => {
     const summary = calculateBasicKPI(orders);
 
@@ -169,7 +173,9 @@ export const exportBasicKPIToExcel = (
         selectedKPI === "활성드링커" ? "활성드링커 상세" : "제품별 마진 상세"
     );
 
-    const fileName = `KPI_${selectedKPI || "요약"}_${dateRange.startDate}_${dateRange.endDate}.xlsx`;
+    const userLabel = selectedUser && selectedUser !== "전체" ? selectedUser : "전체";
+    const fileName = `${userLabel}_${selectedKPI || "요약"}_${dateRange.startDate}~${dateRange.endDate}.xlsx`;
+
     const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
     saveAs(
         new Blob([buffer], {
