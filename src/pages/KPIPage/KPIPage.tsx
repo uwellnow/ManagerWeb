@@ -133,8 +133,10 @@ const KPIPage = () => {
     const handleExcelDownload = () => {
         if (selectedKPI === "리텐션") {
             exportRetentionKPIToExcel(filteredOrders, dateRange);
+        } else if (selectedKPI === "활성드링커" || selectedKPI === "평균마진") {
+            exportBasicKPIToExcel(filteredOrders, dateRange, selectedKPI);
         } else {
-            exportBasicKPIToExcel(filteredOrders, dateRange);
+            alert("현재 선택한 KPI는 엑셀 내보내기가 지원되지 않습니다.");
         }
     };
 
@@ -345,13 +347,13 @@ const KPIPage = () => {
                                         <tbody>
                                         {summaryData.productTable.map((p, idx) => (
                                             <tr key={idx}>
-                                                <td className="border px-2 py-1">{p.제품명}</td>
+                                                <td className="border px-2 py-1">{p.제품명.replace('\\n', ' ')}</td>
                                                 <td className="border px-2 py-1">{p.판매수량}</td>
-                                                <td className="border px-2 py-1">{p.단가}</td>
-                                                <td className="border px-2 py-1">{p.총매출}</td>
-                                                <td className="border px-2 py-1">{p.원가}</td>
+                                                <td className="border px-2 py-1">{p.단가.toLocaleString()}</td>
+                                                <td className="border px-2 py-1">{p.총매출.toLocaleString()}</td>
+                                                <td className="border px-2 py-1">{p.원가.toLocaleString()}</td>
                                                 <td className="border px-2 py-1 font-semibold text-mainRed">
-                                                    {p.이익}
+                                                    {p.이익.toLocaleString()}
                                                 </td>
                                             </tr>
                                         ))}

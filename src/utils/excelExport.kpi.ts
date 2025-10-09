@@ -131,23 +131,45 @@ export const exportRetentionKPIToExcel = (
 
 export const exportBasicKPIToExcel = (
     orders: OrderData[],
-    dateRange: { startDate: string; endDate: string }
+    dateRange: { startDate: string; endDate: string },
+    selectedKPI?: "활성드링커" | "평균마진"
 ) => {
-    const { activeUserCount, avgCupsPerActive, totalOrders, avgMarginPerCup } =
-        calculateBasicKPI(orders);
+    const summary = calculateBasicKPI(orders);
 
+    // ---- 시트 1️⃣: KPI 요약표 ----
     const summarySheetData = [
-        { 항목: "활성 드링커 수", 값: activeUserCount },
-        { 항목: "활성 드링커 1인당 평균 이용 컵 수", 값: avgCupsPerActive.toFixed(2) },
-        { 항목: "총 판매 컵 수", 값: totalOrders },
-        { 항목: "한 잔당 평균 마진(원)", 값: avgMarginPerCup.toFixed(1) },
+        { 항목: "활성 드링커 수", 값: summary.activeUserCount },
+        { 항목: "활성 드링커 1인당 평균 이용 컵 수", 값: summary.avgCupsPerActive.toFixed(2) },
+        { 항목: "총 판매 컵 수", 값: summary.totalOrders },
+        { 항목: "한 잔당 평균 마진(원)", 값: summary.avgMarginPerCup.toFixed(1) },
     ];
+    const summarySheet = XLSX.utils.json_to_sheet(summarySheetData);
 
+    // ---- 시트 2️⃣: 근거 데이터 ----
+    let detailSheet;
+    if (selectedKPI === "활성드링커") {
+        const detailData = summary.activeUsers.map((u) => ({
+            사용자: u.user_name,
+            이용일수: u.visit_dates.length,
+            총주문수: u.total_orders,
+            첫이용일: u.first_visit,
+            마지막이용일: u.visit_dates[u.visit_dates.length - 1],
+        }));
+        detailSheet = XLSX.utils.json_to_sheet(detailData);
+    } else {
+        detailSheet = XLSX.utils.json_to_sheet(summary.productTable);
+    }
+
+    // ---- 워크북 구성 ----
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(summarySheetData);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "요약 KPI");
+    XLSX.utils.book_append_sheet(workbook, summarySheet, "KPI 요약");
+    XLSX.utils.book_append_sheet(
+        workbook,
+        detailSheet,
+        selectedKPI === "활성드링커" ? "활성드링커 상세" : "제품별 마진 상세"
+    );
 
-    const fileName = `KPI_요약_${dateRange.startDate}_${dateRange.endDate}.xlsx`;
+    const fileName = `KPI_${selectedKPI || "요약"}_${dateRange.startDate}_${dateRange.endDate}.xlsx`;
     const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
     saveAs(
         new Blob([buffer], {
