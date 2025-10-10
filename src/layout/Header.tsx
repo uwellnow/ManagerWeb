@@ -24,6 +24,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
     const [isSingleDatePickerOpen, setIsSingleDatePickerOpen] = useState(false);
     
     const isOrderPage = location.pathname === '/order';
+    const isCustomerPage = location.pathname === '/customer';
     
     const formatDateForDisplay = (dateString: string) => {
         // YYYY-MM-DD 형식의 문자열을 한국 시간대로 파싱

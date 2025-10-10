@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useDate } from "../../context/DateContext";
 import { membersApi } from "../../api/members";
 import type { Member, RefundLog } from "../../types/DTO/MemberResponseDto";
 import { exportMembersToExcel } from "../../utils/excelExport";
 
 const CustomerPage = () => {
     const { isAuthenticated } = useAuth();
+    const { selectedDate } = useDate(); // Header의 날짜 선택 사용
     const navigate = useNavigate();
     const [allMembers, setAllMembers] = useState<Member[]>([]); // 전체 회원 데이터
     const [members, setMembers] = useState<Member[]>([]); // 현재 표시되는 회원 데이터
@@ -83,6 +85,11 @@ const CustomerPage = () => {
 
         fetchMembers();
     }, [isAuthenticated]);
+
+    // 날짜가 변경될 때 페이지를 1로 리셋
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedDate]);
 
     useEffect(() => {
         const fetchRefunds = async () => {
@@ -174,9 +181,27 @@ const CustomerPage = () => {
     };
 
     // 회원 구분별 필터링
-    const filteredMembers = selectedMemberType === "전체 회원"
+    let filteredMembers = selectedMemberType === "전체 회원"
         ? members
         : members.filter(member => getMemberType(member) === selectedMemberType);
+    
+    // 날짜 필터링 (첫 멤버십 구매 날짜 기준)
+    if (selectedDate) {
+        filteredMembers = filteredMembers.filter(member => {
+            if (member.memberships.length === 0) return false;
+            
+            // id가 가장 낮은 멤버십 찾기 (첫 구매)
+            const firstMembership = member.memberships.reduce((prev, current) => 
+                (current.id < prev.id) ? current : prev
+            );
+            
+            const createdAt = (firstMembership as any).created_at;
+            if (!createdAt) return false;
+            
+            const firstPurchaseDate = new Date(createdAt).toISOString().split('T')[0];
+            return firstPurchaseDate <= selectedDate;
+        });
+    }
 
     // 페이지네이션
     const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
@@ -208,45 +233,72 @@ const CustomerPage = () => {
         return phone;
     };
 
-    // 결제일시 계산 (가장 최근 멤버십의 결제일)
+    // 결제일시 계산 (id가 가장 높은 멤버십의 결제일)
     const getPaymentDate = (member: Member): string => {
         if (member.memberships.length === 0) return "-";
         
-        // 바코드에서 날짜 추출 (예: 202508175011216 -> 2025.08.17)
-        const latestMembership = member.memberships[member.memberships.length - 1];
-        const barcode = latestMembership.barcode;
+        // id가 가장 높은 멤버십 찾기
+        const latestMembership = member.memberships.reduce((prev, current) => 
+            (current.id > prev.id) ? current : prev
+        );
         
-        if (barcode.length >= 8) {
-            const year = barcode.substring(0, 4);
-            const month = barcode.substring(4, 6);
-            const day = barcode.substring(6, 8);
-            return `${year}.${month}.${day}`;
-        }
+        // created_at에서 날짜 추출
+        const createdAt = (latestMembership as any).created_at;
+        if (!createdAt) return "-";
         
-        return "-";
+        const date = new Date(createdAt);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}.${month}.${day}`;
     };
 
-    // 이용현황 계산 (remain/total)
+    // 이용현황 계산 (id가 가장 높은 멤버십의 이용현황)
     const getUsageStatus = (member: Member): string => {
         if (member.memberships.length === 0) return "-";
         
-        // 가장 최근 멤버십의 이용현황
-        const latestMembership = member.memberships[member.memberships.length - 1];
+        // id가 가장 높은 멤버십 찾기
+        const latestMembership = member.memberships.reduce((prev, current) => 
+            (current.id > prev.id) ? current : prev
+        );
+        
         return `${latestMembership.total_count - latestMembership.remain_count}/${latestMembership.total_count}`;
     };
 
-    // 만료일 표시 함수 (날짜만 표시)
+    // 만료일 표시 함수 (id가 가장 높은 멤버십의 만료일)
     const getExpiredDate = (member: Member): string => {
         if (member.memberships.length === 0) return "-";
         
-        // 가장 최근 멤버십의 만료일
-        const latestMembership = member.memberships[member.memberships.length - 1];
-        // 타입 단언을 사용하여 안전하게 접근
+        // id가 가장 높은 멤버십 찾기
+        const latestMembership = member.memberships.reduce((prev, current) => 
+            (current.id > prev.id) ? current : prev
+        );
+        
         const expiredAt = (latestMembership as any).expired_at;
         if (!expiredAt) return "-";
         
-        // ISO 날짜 문자열에서 날짜 부분만 추출 (YYYY-MM-DD)
         const date = new Date(expiredAt);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}.${month}.${day}`;
+    };
+
+    // 멤버십 첫 구매 날짜 (id가 가장 낮은 멤버십의 created_at)
+    const getFirstPurchaseDate = (member: Member): string => {
+        if (member.memberships.length === 0) return "-";
+        
+        // id가 가장 낮은 멤버십 찾기
+        const firstMembership = member.memberships.reduce((prev, current) => 
+            (current.id < prev.id) ? current : prev
+        );
+        
+        const createdAt = (firstMembership as any).created_at;
+        if (!createdAt) return "-";
+        
+        const date = new Date(createdAt);
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -630,6 +682,7 @@ const CustomerPage = () => {
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">생년월일</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">전화번호</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">회원 등록 매장</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">멤버십 첫 구매</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">결제일시</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">멤버십 현황</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">만료일</th>
@@ -656,6 +709,9 @@ const CustomerPage = () => {
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                         {member.registrant_store || "-"}
+                                    </td>
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                        {getFirstPurchaseDate(member)}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                         {getPaymentDate(member)}

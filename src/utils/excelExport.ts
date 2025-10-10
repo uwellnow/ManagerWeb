@@ -106,6 +106,7 @@ export const exportMembersToExcel = (members: Member[], selectedCategory: string
         '성별': member.gender === 'M' ? '남' : member.gender === 'F' ? '여' : '-',
         '생년월일': member.birth || '-',
         '전화번호': formatPhoneNumber(member.phone),
+        '멤버십 첫 구매': getFirstPurchaseDate(member),
         '결제일시': getPaymentDate(member),
         '멤버십 현황': getUsageStatus(member),
         '멤버십 개수': member.memberships.length
@@ -138,29 +139,55 @@ const formatPhoneNumber = (phone: string): string => {
     return phone;
 };
 
-// 결제일시 계산 함수
+// 결제일시 계산 함수 (id가 가장 높은 멤버십의 결제일)
 const getPaymentDate = (member: Member): string => {
     if (member.memberships.length === 0) return "-";
     
-    // 바코드에서 날짜 추출 (예: 202508175011216 -> 2025.08.17)
-    const latestMembership = member.memberships[member.memberships.length - 1];
-    const barcode = latestMembership.barcode;
+    // id가 가장 높은 멤버십 찾기
+    const latestMembership = member.memberships.reduce((prev, current) => 
+        (current.id > prev.id) ? current : prev
+    );
     
-    if (barcode.length >= 8) {
-        const year = barcode.substring(0, 4);
-        const month = barcode.substring(4, 6);
-        const day = barcode.substring(6, 8);
-        return `${year}.${month}.${day}`;
-    }
+    // created_at에서 날짜 추출
+    const createdAt = (latestMembership as any).created_at;
+    if (!createdAt) return "-";
     
-    return "-";
+    const date = new Date(createdAt);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}.${month}.${day}`;
 };
 
-// 이용현황 계산 함수
+// 이용현황 계산 함수 (id가 가장 높은 멤버십의 이용현황)
 const getUsageStatus = (member: Member): string => {
     if (member.memberships.length === 0) return "-";
     
-    // 가장 최근 멤버십의 이용현황
-    const latestMembership = member.memberships[member.memberships.length - 1];
+    // id가 가장 높은 멤버십 찾기
+    const latestMembership = member.memberships.reduce((prev, current) => 
+        (current.id > prev.id) ? current : prev
+    );
+    
     return `${latestMembership.total_count - latestMembership.remain_count}/${latestMembership.total_count}`;
+};
+
+// 멤버십 첫 구매 날짜 (id가 가장 낮은 멤버십의 created_at)
+const getFirstPurchaseDate = (member: Member): string => {
+    if (member.memberships.length === 0) return "-";
+    
+    // id가 가장 낮은 멤버십 찾기
+    const firstMembership = member.memberships.reduce((prev, current) => 
+        (current.id < prev.id) ? current : prev
+    );
+    
+    const createdAt = (firstMembership as any).created_at;
+    if (!createdAt) return "-";
+    
+    const date = new Date(createdAt);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}.${month}.${day}`;
 };
