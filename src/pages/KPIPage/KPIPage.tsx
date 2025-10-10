@@ -7,11 +7,15 @@ import {
     exportKPISummaryToExcel,
     calculateBasicKPI,
     generateCohortRetentionSummary,
+    exportMembershipKPIToExcel,
+    calculateRepurchaseRate,
+    calculateAvgRepurchasePeriod,
+    calculateAvgConsumptionPeriodFromOrders,
 } from "../../utils/excelExport.kpi";
-import type { OrderData } from "../../types/DTO/OrderResponseDto";
-import type { Member } from "../../types/DTO/MemberResponseDto";
+import type {OrderData} from "../../types/DTO/OrderResponseDto";
+import type {Member} from "../../types/DTO/MemberResponseDto";
 
-type KPIType = "리텐션" | "활성드링커" | "평균마진" | "LTV" | "CAC";
+type KPIType = "리텐션" | "활성드링커" | "평균마진" | "재결제 및 소진기간" | "LTV" | "CAC";
 
 const KPIPage = () => {
     const [orders, setOrders] = useState<OrderData[]>([]);
@@ -26,73 +30,56 @@ const KPIPage = () => {
     const [summaryData, setSummaryData] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [cohortSummary, setCohortSummary] = useState<any[]>([]);
+    const [membersData, setMembersData] = useState<Member[]>([]);
 
     // 주문 데이터 불러오기
     useEffect(() => {
         const fetchOrders = async () => {
             try {
                 setIsLoading(true);
-                
-                // 먼저 회원 데이터를 가져와서 일반 회원 목록 추출
-                const membersData = await membersApi.getMembers();
-                const generalMemberNames = new Set<string>();
-                
-                (membersData.members as Member[]).forEach(member => {
-                    // 특정 전화번호들은 관리자로 분류하여 제외
-                    const adminPhones = [
-                        '01056124767', '01085172296', '01027455601', '01020412103', '01043200842'
-                    ];
-                    if (adminPhones.includes(member.phone)) {
-                        return;
-                    }
-                    
-                    // member_type이 있으면 그대로 사용
-                    if (member.member_type) {
-                        if (member.member_type === "일반 회원") {
-                            generalMemberNames.add(member.name);
-                        }
-                        return;
-                    }
-                    
-                    // member_type이 없는 경우 멤버십 이름으로 구분
-                    if (member.memberships.length === 0) {
-                        generalMemberNames.add(member.name); // 기본값은 일반 회원
-                        return;
-                    }
-                    
-                    const membershipNames = member.memberships.map(m => m.name);
-                    
-                    // 트레이너, 서포터즈, 관리자는 제외
-                    const isSpecialMember = membershipNames.some(name => 
-                        name.includes("트레이너") || 
-                        name.includes("서포터즈") || 
-                        name.includes("앰버서더") || 
-                        name.includes("관리자")
-                    );
-                    
-                    if (!isSpecialMember) {
-                        generalMemberNames.add(member.name); // 나머지는 일반 회원
-                    }
+
+                // 1️⃣ 회원 데이터 가져오기
+                const membersRes = await membersApi.getMembers();
+                const members = membersRes.members as Member[];
+
+                const adminPhones = ["01056124767", "01085172296", "01027455601", "01020412103", "01043200842"];
+                const specialKeywords = ["트레이너", "서포터즈", "앰버서더", "관리자"];
+
+
+                // 3️⃣ 일반 회원 필터링
+                const generalMembers = members.filter((member) => {
+                    if (adminPhones.includes(member.phone)) return false;
+                    if (specialKeywords.some((kw) => member.name.includes(kw))) return false;
+                    if (member.member_type && member.member_type !== "일반 회원") return false;
+                    return true;
                 });
-                
-                // 주문 데이터를 가져와서 일반 회원의 주문만 필터링
-                const data = await ordersApi.getOrders();
-                const filtered = data.filter(
-                    (o: OrderData) =>
-                        o.store_name !== "테스트용" && 
-                        o.user_name !== null && 
-                        o.user_name !== "테스트" && 
-                        generalMemberNames.has(o.user_name) // 일반 회원의 주문만 포함
+
+                setMembersData(generalMembers);
+
+                const generalMemberNames = new Set(generalMembers.map((m) => m.name));
+
+                // 4️⃣ 주문 데이터 가져오기
+                const ordersRes = await ordersApi.getOrders();
+
+                const filteredOrders = ordersRes.filter(
+                    (order: OrderData) =>
+                        order.store_name !== "테스트용" &&
+                        order.user_name &&
+                        order.user_name !== "테스트" &&
+                        generalMemberNames.has(order.user_name)
                 );
-                setOrders(filtered);
+
+                setOrders(filteredOrders);
             } catch (e) {
                 console.error("주문 데이터 로드 실패:", e);
             } finally {
                 setIsLoading(false);
             }
         };
+
         fetchOrders();
     }, []);
+
 
     // 필터 적용
     useEffect(() => {
@@ -128,6 +115,7 @@ const KPIPage = () => {
     const makeRetentionRow = (user: any) => {
         const firstDate = new Date(user.first_visit);
         const dayStatus: Record<string, string> = {};
+
 
         for (let day = 0; day <= 70; day++) {
             const target = new Date(firstDate);
@@ -169,15 +157,51 @@ const KPIPage = () => {
             setCohortSummary(cohort);
             setSummaryData(null);
         }
-        else if (selectedKPI === "활성드링커" || selectedKPI === "평균마진") {
-            const summary = calculateBasicKPI(filteredOrders);
-            setSummaryData(summary);
-            setResultData([
-                { 항목: "활성 드링커 수", 값: summary.activeUserCount },
-                { 항목: "활성 드링커 1인당 평균 이용 컵 수", 값: summary.avgCupsPerActive.toFixed(2) },
-                { 항목: "총 판매 컵 수", 값: summary.totalOrders },
-                { 항목: "한 잔당 평균 마진(원)", 값: summary.avgMarginPerCup.toFixed(1) },
-            ]);
+        else {
+            // 모든 KPI 요약 데이터 계산
+            const basicSummary = calculateBasicKPI(filteredOrders);
+            const repurchaseRate = calculateRepurchaseRate(membersData, orders, dateRange);
+            const avgRepurchasePeriod = calculateAvgRepurchasePeriod(membersData, orders, dateRange);
+            const avgByTicket = calculateAvgConsumptionPeriodFromOrders(membersData, orders, dateRange);
+
+            // 전체 KPI 요약 테이블
+            const allKPISummary = [
+                { 항목: "활성 드링커 수", 값: basicSummary.activeUserCount },
+                { 항목: "활성 드링커 1인당 평균 이용 컵 수", 값: basicSummary.avgCupsPerActive.toFixed(2) },
+                { 항목: "총 판매 컵 수", 값: basicSummary.totalOrders },
+                { 항목: "한 잔당 평균 마진(원)", 값: basicSummary.avgMarginPerCup.toFixed(1) },
+                { 항목: "재결제 비율(%)", 값: Number(repurchaseRate).toFixed(2) },
+                { 항목: "평균 재결제 기간(일)", 값: Math.round(avgRepurchasePeriod.totalAvgDays) },
+                ...Object.entries(avgByTicket.ticketAverages).map(([ticket, avg]) => ({
+                    항목: `${ticket} 평균 소진기간(일)`,
+                    값: Math.round(Number(avg)),
+                })),
+            ];
+
+            // 근거 데이터 준비
+            const repurchaseDetails = avgRepurchasePeriod.userPeriods.map(u => ({
+                회원명: u.name,
+                소진날짜: u.consumptionDate,
+                재구매날짜: u.repurchaseDate,
+                기간: Math.round(u.period),
+            }));
+
+            const consumptionDetails = avgByTicket.userDetails.map(u => ({
+                회원명: u.name,
+                이용권: u.ticket,
+                구매날짜: u.purchaseDate,
+                소진날짜: u.consumptionDate,
+                소진기간: Math.round(u.period),
+            }));
+
+            setResultData(allKPISummary);
+            setSummaryData({
+                activeUsers: basicSummary.activeUsers,
+                productTable: basicSummary.productTable,
+                repurchase: repurchaseDetails,
+                consumption: consumptionDetails,
+            });
+            setCohortSummary([]);
         }
     };
 
@@ -186,17 +210,17 @@ const KPIPage = () => {
             exportRetentionKPIToExcel(filteredOrders, dateRange, selectedUser);
         } else if (selectedKPI === "활성드링커" || selectedKPI === "평균마진") {
             exportBasicKPIToExcel(filteredOrders, dateRange, selectedKPI, selectedUser);
-        } else {
+        } else if (selectedKPI === "재결제 및 소진기간"){
+            exportMembershipKPIToExcel(membersData, orders, dateRange);
+        }
+        else {
             alert("현재 선택한 KPI는 엑셀 내보내기가 지원되지 않습니다.");
         }
     };
 
     const handleKPISummaryDownload = () => {
-        if (selectedKPI === "활성드링커" || selectedKPI === "평균마진") {
-            exportKPISummaryToExcel(filteredOrders, dateRange, selectedUser);
-        } else {
-            alert("활성드링커 또는 평균마진 KPI를 선택해주세요.");
-        }
+        // 리텐션을 제외한 모든 KPI 요약 데이터 다운로드
+        exportKPISummaryToExcel(filteredOrders, dateRange, selectedUser, membersData);
     };
 
     if (isLoading) {
@@ -259,6 +283,7 @@ const KPIPage = () => {
                         <option value="리텐션">리텐션</option>
                         <option value="활성드링커">활성드링커</option>
                         <option value="평균마진">평균마진</option>
+                        <option value="재결제 및 소진기간">재결제 및 소진기간</option>
                         <option value="LTV">LTV</option>
                         <option value="CAC">CAC</option>
                     </select>
@@ -271,31 +296,19 @@ const KPIPage = () => {
                     KPI 생성
                 </button>
 
-                {(selectedKPI === "활성드링커" || selectedKPI === "평균마진") ? (
-                    <button
-                        onClick={handleExcelDownload}
-                        className="bg-red-50 border border-mainRed text-red-700 px-4 py-2 rounded-lg"
-                    >
-                        세부 KPI 다운로드
-                    </button>
-                ) : (
-                    <button
-                        onClick={handleExcelDownload}
-                        className="bg-red-50 border border-mainRed text-red-700 px-4 py-2 rounded-lg"
-                    >
-                        엑셀 다운로드
-                    </button>
-                )}
-                
+                <button
+                    onClick={handleExcelDownload}
+                    className="bg-red-50 border border-mainRed text-red-700 px-4 py-2 rounded-lg"
+                >
+                    세부 데이터 다운로드
+                </button>
 
-                {(selectedKPI === "활성드링커" || selectedKPI === "평균마진") && (
-                    <button
-                        onClick={handleKPISummaryDownload}
-                        className="bg-blue-50 border border-blue-300 text-blue-700 px-4 py-2 rounded-lg"
-                    >
-                        KPI 요약 다운로드
-                    </button>
-                )}
+                <button
+                    onClick={handleKPISummaryDownload}
+                    className="bg-blue-50 border border-blue-300 text-blue-700 px-4 py-2 rounded-lg"
+                >
+                    KPI 요약 다운로드
+                </button>
             </div>
 
             {/* 결과 테이블 */}
@@ -469,6 +482,71 @@ const KPIPage = () => {
                                     </table>
                                 </div>
                             )}
+
+                            {/* 재결제 비율/기간 근거 데이터 */}
+                            {selectedKPI === "재결제 및 소진기간" && summaryData?.repurchase && (
+                                <div>
+                                    <h2 className="text-lg font-semibold mb-3">
+                                        재결제 회원별 상세 데이터
+                                    </h2>
+                                    <table className="min-w-full border text-sm text-center">
+                                        <thead className="bg-gray-100">
+                                        <tr>
+                                            <th className="border px-2 py-1">회원명</th>
+                                            <th className="border px-2 py-1">소진날짜</th>
+                                            <th className="border px-2 py-1">재구매날짜</th>
+                                            <th className="border px-2 py-1">기간(일)</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {summaryData.repurchase.map((user: any, idx: number) => (
+                                            <tr key={idx}>
+                                                <td className="border px-2 py-1">{user.회원명}</td>
+                                                <td className="border px-2 py-1">{user.소진날짜}</td>
+                                                <td className="border px-2 py-1">{user.재구매날짜}</td>
+                                                <td className="border px-2 py-1 font-semibold text-mainRed">
+                                                    {user.기간}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {/* 이용권별 소진기간 근거 데이터 */}
+                            {selectedKPI === "재결제 및 소진기간" && summaryData?.consumption && (
+                                <div>
+                                    <h2 className="text-lg font-semibold mb-3">
+                                        이용권별 소진기간 상세 데이터
+                                    </h2>
+                                    <table className="min-w-full border text-sm text-center">
+                                        <thead className="bg-gray-100">
+                                        <tr>
+                                            <th className="border px-2 py-1">회원명</th>
+                                            <th className="border px-2 py-1">이용권</th>
+                                            <th className="border px-2 py-1">구매날짜</th>
+                                            <th className="border px-2 py-1">소진날짜</th>
+                                            <th className="border px-2 py-1">소진기간(일)</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {summaryData.consumption.map((user: any, idx: number) => (
+                                            <tr key={idx}>
+                                                <td className="border px-2 py-1">{user.회원명}</td>
+                                                <td className="border px-2 py-1">{user.이용권}</td>
+                                                <td className="border px-2 py-1">{user.구매날짜}</td>
+                                                <td className="border px-2 py-1">{user.소진날짜}</td>
+                                                <td className="border px-2 py-1 font-semibold text-mainRed">
+                                                    {user.소진기간}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
                         </>
                     )}
                 </div>

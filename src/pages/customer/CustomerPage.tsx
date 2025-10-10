@@ -676,9 +676,9 @@ const CustomerPage = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-1 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">회원명</th>
-                                <th className="px-1 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">회원 구분</th>
-                                <th className="px-1 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">성별</th>
+                                <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">회원명</th>
+                                <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">회원 구분</th>
+                                <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">성별</th>
                                 <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">생년월일</th>
                                 <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">전화번호</th>
                                 <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">회원 등록 매장</th>
@@ -692,16 +692,16 @@ const CustomerPage = () => {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {currentMembers.map((member) => (
                                 <tr key={member.id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-sm text-gray-900 font-medium">
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-sm text-gray-900 font-medium">
                                         {member.name}
                                     </td>
-                                    <td className="px-1 sm:px-3 lg:px-6 py-1 sm:py-4 text-xs sm:text-sm lg:text-sm text-gray-900">
+                                    <td className="px-2 sm:px-3 lg:px-6 py-1 sm:py-4 text-xs sm:text-sm lg:text-sm text-gray-900">
                                         {getMemberType(member)}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-sm text-gray-900">
                                         {getGenderDisplay(member.gender)}
                                     </td>
-                                    <td className="px-1 sm:px-2 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-sm text-gray-900">
+                                    <td className="px-2 sm:px-2 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-sm text-gray-900">
                                         {getBirthDisplay(member.birth)}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-sm text-gray-900">
