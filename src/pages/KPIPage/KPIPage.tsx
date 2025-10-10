@@ -4,7 +4,9 @@ import { membersApi } from "../../api/members";
 import {
     exportRetentionKPIToExcel,
     exportBasicKPIToExcel,
-    calculateBasicKPI, generateCohortRetentionSummary,
+    exportKPISummaryToExcel,
+    calculateBasicKPI,
+    generateCohortRetentionSummary,
 } from "../../utils/excelExport.kpi";
 import type { OrderData } from "../../types/DTO/OrderResponseDto";
 import type { Member } from "../../types/DTO/MemberResponseDto";
@@ -189,6 +191,14 @@ const KPIPage = () => {
         }
     };
 
+    const handleKPISummaryDownload = () => {
+        if (selectedKPI === "활성드링커" || selectedKPI === "평균마진") {
+            exportKPISummaryToExcel(filteredOrders, dateRange, selectedUser);
+        } else {
+            alert("활성드링커 또는 평균마진 KPI를 선택해주세요.");
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-screen text-gray-600">
@@ -261,12 +271,31 @@ const KPIPage = () => {
                     KPI 생성
                 </button>
 
-                <button
-                    onClick={handleExcelDownload}
-                    className="bg-red-50 border border-red-300 text-red-700 px-4 py-2 rounded-lg"
-                >
-                    엑셀 다운로드
-                </button>
+                {(selectedKPI === "활성드링커" || selectedKPI === "평균마진") ? (
+                    <button
+                        onClick={handleExcelDownload}
+                        className="bg-red-50 border border-mainRed text-red-700 px-4 py-2 rounded-lg"
+                    >
+                        세부 KPI 다운로드
+                    </button>
+                ) : (
+                    <button
+                        onClick={handleExcelDownload}
+                        className="bg-red-50 border border-mainRed text-red-700 px-4 py-2 rounded-lg"
+                    >
+                        엑셀 다운로드
+                    </button>
+                )}
+                
+
+                {(selectedKPI === "활성드링커" || selectedKPI === "평균마진") && (
+                    <button
+                        onClick={handleKPISummaryDownload}
+                        className="bg-blue-50 border border-blue-300 text-blue-700 px-4 py-2 rounded-lg"
+                    >
+                        KPI 요약 다운로드
+                    </button>
+                )}
             </div>
 
             {/* 결과 테이블 */}

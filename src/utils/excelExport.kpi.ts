@@ -31,8 +31,8 @@ export const makeRetentionRow = (user: any) => {
     const firstDate = new Date(user.first_visit);
     const dayStatus: Record<string, string> = {};
 
-    // Day0 ~ Day22 이용 여부 계산
-    for (let day = 0; day <= 22; day++) {
+    // Day0 ~ Day70 이용 여부 계산
+    for (let day = 0; day <= 70; day++) {
         const target = new Date(firstDate);
         target.setDate(firstDate.getDate() + day);
         const dateStr = target.toISOString().split("T")[0];
@@ -92,7 +92,7 @@ export const generateCohortRetentionSummary = (orders: OrderData[]) => {
 };
 
 /* -------------------------------------------
-   🧾 리텐션 KPI 엑셀 내보내기
+   🧾 리텐션 KPI CSV 내보내기
 ------------------------------------------- */
 export const exportRetentionKPIToExcel = (
     orders: OrderData[],
@@ -102,31 +102,33 @@ export const exportRetentionKPIToExcel = (
     const userRetention = generateRetentionTable(orders);
     const cohortSummary = generateCohortRetentionSummary(orders);
 
-    const workbook = XLSX.utils.book_new();
+    // 개인 리텐션 CSV 변환
+    const userRetentionSheet = XLSX.utils.json_to_sheet(userRetention);
+    const userRetentionCsv = XLSX.utils.sheet_to_csv(userRetentionSheet);
 
-    // 시트 1️⃣ 개인 리텐션
-    XLSX.utils.book_append_sheet(
-        workbook,
-        XLSX.utils.json_to_sheet(userRetention),
-        "개인별 리텐션"
-    );
+    // 전체 리텐션 요약 CSV 변환
+    const cohortSummarySheet = XLSX.utils.json_to_sheet(cohortSummary);
+    const cohortSummaryCsv = XLSX.utils.sheet_to_csv(cohortSummarySheet);
 
-    // 시트 2️⃣ 전체 리텐션 요약
-    XLSX.utils.book_append_sheet(
-        workbook,
-        XLSX.utils.json_to_sheet(cohortSummary),
-        "전체 리텐션 요약"
-    );
+    // 두 테이블을 구분선으로 분리하여 결합
+    const combinedCsv = 
+        "=== 개인별 리텐션 ===\n" + 
+        userRetentionCsv + 
+        "\n\n=== 전체 리텐션 요약 ===\n" + 
+        cohortSummaryCsv;
+
+    // UTF-8 BOM 추가 (Excel에서 한글 정상 표시)
+    const BOM = '\uFEFF';
+    const csvWithBOM = BOM + combinedCsv;
 
     // 파일명 생성
     const userLabel =
         selectedUser && selectedUser !== "전체" ? selectedUser : "전체";
-    const fileName = `${userLabel}_리텐션_${dateRange.startDate}~${dateRange.endDate}.xlsx`;
+    const fileName = `${userLabel}_리텐션_${dateRange.startDate}~${dateRange.endDate}.csv`;
 
-    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
     saveAs(
-        new Blob([buffer], {
-            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        new Blob([csvWithBOM], {
+            type: "text/csv;charset=utf-8;",
         }),
         fileName
     );
@@ -203,12 +205,60 @@ export const calculateBasicKPI = (orders: OrderData[]) => {
 };
 
 /* -------------------------------------------
-   💾 활성드링커 / 평균마진 엑셀 내보내기
+   💾 활성드링커 / 평균마진 CSV 내보내기
 ------------------------------------------- */
 export const exportBasicKPIToExcel = (
     orders: OrderData[],
     dateRange: { startDate: string; endDate: string },
     selectedKPI?: "활성드링커" | "평균마진",
+    selectedUser?: string
+) => {
+    const summary = calculateBasicKPI(orders);
+
+    let detailData;
+    if (selectedKPI === "활성드링커") {
+        detailData = summary.activeUsers.map((u) => ({
+            사용자: u.user_name,
+            이용일수: u.visit_dates.length,
+            총주문수: u.total_orders,
+            첫이용일: "'" + u.first_visit,
+            마지막이용일: "'" + u.visit_dates[u.visit_dates.length - 1],
+        }));
+    } else {
+        detailData = summary.productTable;
+    }
+
+    const detailSheet = XLSX.utils.json_to_sheet(detailData);
+    const detailCsv = XLSX.utils.sheet_to_csv(detailSheet);
+    
+    // 상세 데이터만 내보내기
+    const sectionTitle = selectedKPI === "활성드링커" ? "활성드링커 상세" : "제품별 마진 상세";
+    const combinedCsv = "=== " + sectionTitle + " ===\n" + detailCsv;
+    
+    // UTF-8 BOM 추가 (Excel에서 한글 정상 표시)
+    const BOM = '\uFEFF';
+    const csvWithBOM = BOM + combinedCsv;
+
+    const userLabel =
+        selectedUser && selectedUser !== "전체" ? selectedUser : "전체";
+    const fileName = `${userLabel}_${selectedKPI || "요약"}_${
+        dateRange.startDate
+    }~${dateRange.endDate}.csv`;
+
+    saveAs(
+        new Blob([csvWithBOM], {
+            type: "text/csv;charset=utf-8;",
+        }),
+        fileName
+    );
+};
+
+/* -------------------------------------------
+   📊 KPI 요약표 CSV 내보내기
+------------------------------------------- */
+export const exportKPISummaryToExcel = (
+    orders: OrderData[],
+    dateRange: { startDate: string; endDate: string },
     selectedUser?: string
 ) => {
     const summary = calculateBasicKPI(orders);
@@ -228,43 +278,24 @@ export const exportBasicKPIToExcel = (
         },
         {
             항목: "한 잔당 평균 마진(원)",
-            값: summary.avgMarginPerCup.toLocaleString("ko-KR"),
+            값: summary.avgMarginPerCup.toFixed(0),
         },
     ];
+
     const summarySheet = XLSX.utils.json_to_sheet(summarySheetData);
+    const summaryCsv = XLSX.utils.sheet_to_csv(summarySheet);
 
-    let detailSheet;
-    if (selectedKPI === "활성드링커") {
-        const detailData = summary.activeUsers.map((u) => ({
-            사용자: u.user_name,
-            이용일수: u.visit_dates.length,
-            총주문수: u.total_orders,
-            첫이용일: u.first_visit,
-            마지막이용일: u.visit_dates[u.visit_dates.length - 1],
-        }));
-        detailSheet = XLSX.utils.json_to_sheet(detailData);
-    } else {
-        detailSheet = XLSX.utils.json_to_sheet(summary.productTable);
-    }
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, summarySheet, "KPI 요약");
-    XLSX.utils.book_append_sheet(
-        workbook,
-        detailSheet,
-        selectedKPI === "활성드링커" ? "활성드링커 상세" : "제품별 마진 상세"
-    );
+    // UTF-8 BOM 추가 (Excel에서 한글 정상 표시)
+    const BOM = '\uFEFF';
+    const csvWithBOM = BOM + "=== KPI 요약 ===\n" + summaryCsv;
 
     const userLabel =
         selectedUser && selectedUser !== "전체" ? selectedUser : "전체";
-    const fileName = `${userLabel}_${selectedKPI || "요약"}_${
-        dateRange.startDate
-    }~${dateRange.endDate}.xlsx`;
+    const fileName = `${userLabel}_KPI요약_${dateRange.startDate}~${dateRange.endDate}.csv`;
 
-    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
     saveAs(
-        new Blob([buffer], {
-            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        new Blob([csvWithBOM], {
+            type: "text/csv;charset=utf-8;",
         }),
         fileName
     );
