@@ -5,7 +5,7 @@ import type {Member} from "../types/DTO/MemberResponseDto.ts";
 
 
 /* -------------------------------------------
-   🧩 유저별 방문일 정보 그룹화
+   유저별 방문일 정보 그룹화
 ------------------------------------------- */
 export const groupByUserForRetention = (orders: OrderData[]) => {
     const grouped = new Map<string, Set<string>>();
@@ -27,7 +27,7 @@ export const groupByUserForRetention = (orders: OrderData[]) => {
 };
 
 /* -------------------------------------------
-   🧩 개인 단위 리텐션 행 생성
+   개인 단위 리텐션 행 생성
 ------------------------------------------- */
 export const makeRetentionRow = (user: any) => {
     const firstDate = new Date(user.first_visit);
@@ -44,7 +44,7 @@ export const makeRetentionRow = (user: any) => {
     }
 
     // 7일 단위 리텐션 계산
-    const retentionDays = Array.from({ length: 3 }, (_, i) => (i + 1) * 7); // [7,14,21]
+    const retentionDays = Array.from({ length: 10 }, (_, i) => (i + 1) * 7); // [7,14,21]
     const retainedCount = retentionDays.filter(
         (d) => dayStatus[`Day${d}`] === "이용"
     ).length;
@@ -59,7 +59,7 @@ export const makeRetentionRow = (user: any) => {
 };
 
 /* -------------------------------------------
-   🧩 개인 리텐션 테이블 생성
+   개인 리텐션 테이블 생성
 ------------------------------------------- */
 export const generateRetentionTable = (orders: OrderData[]) => {
     const users = groupByUserForRetention(orders);
@@ -67,11 +67,11 @@ export const generateRetentionTable = (orders: OrderData[]) => {
 };
 
 /* -------------------------------------------
-   📊 전체 리텐션 요약 계산
+   전체 리텐션 요약 계산
 ------------------------------------------- */
 export const generateCohortRetentionSummary = (orders: OrderData[]) => {
     const users = groupByUserForRetention(orders);
-    const retentionDays = Array.from({ length: 3 }, (_, i) => (i + 1) * 7); // [7,14,21]
+    const retentionDays = Array.from({ length: 10 }, (_, i) => (i + 1) * 7); // [7,14,21]
     const totalUsers = users.length;
 
     const cohortSummary = retentionDays.map((day) => {
@@ -94,7 +94,7 @@ export const generateCohortRetentionSummary = (orders: OrderData[]) => {
 };
 
 /* -------------------------------------------
-   🧾 리텐션 KPI CSV 내보내기
+   리텐션 KPI CSV 내보내기
 ------------------------------------------- */
 export const exportRetentionKPIToExcel = (
     orders: OrderData[],
@@ -153,7 +153,7 @@ const PRODUCT_COSTS: Record<string, number> = {
 };
 
 /* -------------------------------------------
-   💚 기본 KPI (활성드링커/평균마진)
+   기본 KPI (활성드링커/평균마진)
 ------------------------------------------- */
 export const calculateBasicKPI = (orders: OrderData[]) => {
     const grouped = new Map<string, { dates: Set<string>; totalOrders: number }>();
