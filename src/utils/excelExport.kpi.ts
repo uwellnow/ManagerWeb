@@ -681,4 +681,307 @@ export function exportMembershipDetailKPIToExcel(members: Member[], orders: any[
     XLSX.writeFile(wb, `재결제_및_소진기간_상세_${new Date().toISOString().split("T")[0]}.xlsx`);
 }
 
+/* -------------------------------------------
+   LTV (Life Time Value) 계산
+------------------------------------------- */
+export const calculateLTV = (orders: OrderData[]) => {
+    // 1. 평균 마진 계산 (calculateBasicKPI 로직 복사)
+    const totalOrders = orders.length;
+    const avgPrice = 1800; // 평균 판매 단가
+    
+    // 제품별 원가 계산
+    const productSummary = new Map<string, number>();
+    orders.forEach((o) => {
+        productSummary.set(
+            o.product_name,
+            (productSummary.get(o.product_name) || 0) + 1
+        );
+    });
+
+    // 총 원가 = 각 제품별 (수량 × 원가)의 합
+    let totalCost = 0;
+    productSummary.forEach((count, productName) => {
+        const cost = PRODUCT_COSTS[productName] || PRODUCT_COSTS["default"];
+        totalCost += count * cost;
+    });
+
+    const totalRevenue = totalOrders * avgPrice;
+    const avgMarginPerCup = (totalRevenue - totalCost) / totalOrders;
+
+    // 2. 평균 구매 컵 수 계산
+    const uniqueCustomers = new Set(orders.map(o => o.user_name)).size;
+    const avgCupsPerCustomer = totalOrders / uniqueCustomers;
+
+    // 3. 고객 평균 리텐션 계산 (누적 리텐션 방식)
+    const grouped = new Map<string, { dates: Set<string>; totalOrders: number }>();
+    orders.forEach((o) => {
+        const date = new Date(o.order_time).toISOString().split("T")[0];
+        if (!grouped.has(o.user_name))
+            grouped.set(o.user_name, { dates: new Set(), totalOrders: 0 });
+        grouped.get(o.user_name)!.dates.add(date);
+        grouped.get(o.user_name)!.totalOrders += 1;
+    });
+
+    // 주차별 리텐션 계산
+    const weeklyRetention: number[] = [];
+    const maxWeeks = 12; // 최대 12주까지 계산
+    
+    for (let week = 1; week <= maxWeeks; week++) {
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - (week * 7));
+        const weekEnd = new Date();
+        weekEnd.setDate(weekEnd.getDate() - ((week - 1) * 7));
+        
+        const weekStartStr = weekStart.toISOString().split("T")[0];
+        const weekEndStr = weekEnd.toISOString().split("T")[0];
+        
+        // 해당 주에 주문한 고객 수
+        const customersInWeek = new Set(
+            orders
+                .filter(o => {
+                    const orderDate = new Date(o.order_time).toISOString().split("T")[0];
+                    return orderDate >= weekStartStr && orderDate < weekEndStr;
+                })
+                .map(o => o.user_name)
+        ).size;
+        
+        // 이전 주에 주문한 고객 수
+        const prevWeekStart = new Date();
+        prevWeekStart.setDate(prevWeekStart.getDate() - ((week + 1) * 7));
+        const prevWeekEnd = new Date();
+        prevWeekEnd.setDate(prevWeekEnd.getDate() - (week * 7));
+        
+        const prevWeekStartStr = prevWeekStart.toISOString().split("T")[0];
+        const prevWeekEndStr = prevWeekEnd.toISOString().split("T")[0];
+        
+        const customersInPrevWeek = new Set(
+            orders
+                .filter(o => {
+                    const orderDate = new Date(o.order_time).toISOString().split("T")[0];
+                    return orderDate >= prevWeekStartStr && orderDate < prevWeekEndStr;
+                })
+                .map(o => o.user_name)
+        ).size;
+        
+        if (customersInPrevWeek > 0) {
+            weeklyRetention.push(customersInWeek / customersInPrevWeek);
+        } else {
+            weeklyRetention.push(0);
+        }
+    }
+    
+    // 누적 리텐션 계산
+    let cumulativeRetention = 1; // 첫 주는 1로 시작
+    for (let i = 0; i < weeklyRetention.length; i++) {
+        if (weeklyRetention[i] > 0) {
+            let product = 1;
+            for (let j = 0; j <= i; j++) {
+                product *= weeklyRetention[j];
+            }
+            cumulativeRetention += product;
+        }
+    }
+    
+    const avgRetention = cumulativeRetention;
+
+    // 4. LTV 계산
+    const ltv = avgMarginPerCup * avgCupsPerCustomer * avgRetention;
+
+    return {
+        avgMarginPerCup: Math.round(avgMarginPerCup),
+        avgCupsPerCustomer: Math.round(avgCupsPerCustomer * 100) / 100,
+        avgRetention: Math.round(avgRetention * 100) / 100, // 누적 리텐션 값
+        ltv: Math.round(ltv),
+        totalOrders,
+        uniqueCustomers,
+        weeklyRetention: weeklyRetention.map(r => Math.round(r * 10000) / 100), // 주차별 리텐션 백분율
+        cumulativeRetention: Math.round(avgRetention * 100) / 100,
+        totalRevenue: Math.round(totalRevenue),
+        totalCost: Math.round(totalCost)
+    };
+};
+
+// LTV 데이터를 엑셀로 내보내는 함수
+export const exportLTVToExcel = (ltvData: any) => {
+    const wb = XLSX.utils.book_new();
+    
+    // LTV 요약 데이터 (사용자 정의 리텐션 반영)
+    const summaryData = [
+        { 지표: "평균 마진 (원/잔)", 값: ltvData.avgMarginPerCup.toLocaleString("ko-KR") },
+        { 지표: "평균 구매 컵 수 (잔/고객)", 값: ltvData.avgCupsPerCustomer.toLocaleString("ko-KR") },
+        { 지표: "누적 리텐션", 값: (ltvData.customRetention || ltvData.cumulativeRetention).toLocaleString("ko-KR") },
+        { 지표: "LTV (원)", 값: (ltvData.customLTV || ltvData.ltv).toLocaleString("ko-KR") },
+        { 지표: "총 주문 수", 값: ltvData.totalOrders.toLocaleString("ko-KR") },
+        { 지표: "고유 고객 수", 값: ltvData.uniqueCustomers.toLocaleString("ko-KR") },
+        { 지표: "총 매출 (원)", 값: ltvData.totalRevenue.toLocaleString("ko-KR") },
+        { 지표: "총 원가 (원)", 값: ltvData.totalCost.toLocaleString("ko-KR") }
+    ];
+    
+    // 사용자 정의 리텐션 사용 여부 표시
+    if (ltvData.customRetention) {
+        summaryData.push({ 지표: "기본 누적 리텐션", 값: ltvData.cumulativeRetention.toLocaleString("ko-KR") });
+        summaryData.push({ 지표: "기본 LTV (원)", 값: ltvData.ltv.toLocaleString("ko-KR") });
+    }
+
+    // 주차별 리텐션 데이터
+    const weeklyRetentionData = ltvData.weeklyRetention.map((retention: number, index: number) => ({
+        주차: `${index + 1}주차`,
+        리텐션: `${retention.toFixed(2)}%`
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws, "LTV 요약");
+
+    const ws2 = XLSX.utils.json_to_sheet(weeklyRetentionData);
+    XLSX.utils.book_append_sheet(wb, ws2, "주차별 리텐션");
+
+    XLSX.writeFile(wb, `LTV_분석_${new Date().toISOString().split("T")[0]}.xlsx`);
+};
+
+/* -------------------------------------------
+   CAC (Customer Acquisition Cost) 계산
+------------------------------------------- */
+export const calculateCAC = (members: Member[], dateRange: { startDate: string; endDate: string }) => {
+    // 선택한 기간 내에 멤버십 첫 구매를 한 신규 고객 수 계산
+    const newCustomers = members.filter(member => {
+        if (member.memberships.length === 0) return false;
+        
+        // id가 가장 낮은 멤버십 찾기 (첫 구매)
+        const firstMembership = member.memberships.reduce((prev, current) => 
+            (current.id < prev.id) ? current : prev
+        );
+        
+        const createdAt = (firstMembership as any).created_at;
+        if (!createdAt) return false;
+        
+        const firstPurchaseDate = new Date(createdAt).toISOString().split('T')[0];
+        return firstPurchaseDate >= dateRange.startDate && firstPurchaseDate <= dateRange.endDate;
+    }).length;
+
+    return {
+        newCustomers,
+        couponPrice: 1800, // 기본 쿠폰 단가
+        dateRange: `${dateRange.startDate} ~ ${dateRange.endDate}`
+    };
+};
+
+// CAC 데이터를 엑셀로 내보내는 함수
+export const exportCACToExcel = (cacData: any) => {
+    const wb = XLSX.utils.book_new();
+    
+    // CAC 요약 데이터 (사용자 정의 쿠폰 수 반영)
+    const summaryData = [
+        { 지표: "신규 고객 수", 값: cacData.newCustomers.toLocaleString("ko-KR") },
+        { 지표: "쿠폰 단가 (원)", 값: cacData.couponPrice.toLocaleString("ko-KR") },
+        { 지표: "쿠폰 수", 값: (cacData.customCouponCount || 0).toLocaleString("ko-KR") },
+        { 지표: "CAC (원)", 값: (cacData.customCAC || 0).toLocaleString("ko-KR") },
+        { 지표: "분석 기간", 값: cacData.dateRange }
+    ];
+    
+    // 사용자 정의 쿠폰 수 사용 여부 표시
+    if (cacData.customCouponCount) {
+        summaryData.push({ 지표: "총 마케팅 비용 (원)", 값: (cacData.customCouponCount * cacData.couponPrice).toLocaleString("ko-KR") });
+    }
+
+    const ws = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws, "CAC 요약");
+
+    XLSX.writeFile(wb, `CAC_분석_${new Date().toISOString().split("T")[0]}.xlsx`);
+};
+
+/* -------------------------------------------
+   페이백 기간 (Payback Period) 계산
+------------------------------------------- */
+export const calculatePaybackPeriod = (orders: OrderData[], members: Member[], dateRange: { startDate: string; endDate: string }) => {
+    // 1. 전체 결제 금액 계산
+    const totalOrders = orders.length;
+    const avgPrice = 1800; // 평균 판매 단가
+    const totalRevenue = totalOrders * avgPrice;
+
+    // 2. 원가 계산
+    // 제품별 구매 수량 계산
+    const productSummary = new Map<string, number>();
+    orders.forEach((o) => {
+        productSummary.set(
+            o.product_name,
+            (productSummary.get(o.product_name) || 0) + 1
+        );
+    });
+
+    // 각 보충제별 원가 × 각 보충제별 구매 잔 수 / 전체 구매 잔 수
+    let weightedCost = 0;
+    productSummary.forEach((count, productName) => {
+        const cost = PRODUCT_COSTS[productName] || PRODUCT_COSTS["default"];
+        weightedCost += (cost * count) / totalOrders;
+    });
+
+    // 비용 추가 (15,000원)
+    const additionalCost = 15000;
+    const totalCost = weightedCost + additionalCost;
+
+    // 3. 순이익 계산
+    const netProfit = totalRevenue - totalCost;
+
+    // 4. 전체 결제 고객 수 계산
+    const uniqueCustomers = new Set(orders.map(o => o.user_name)).size;
+
+    // 5. 고객 당 평균 순이익 계산
+    const avgNetProfitPerCustomer = netProfit / uniqueCustomers;
+
+    // 6. 신규 고객 수 계산 (CAC에서 사용)
+    const newCustomers = members.filter(member => {
+        if (member.memberships.length === 0) return false;
+        
+        const firstMembership = member.memberships.reduce((prev, current) => 
+            (current.id < prev.id) ? current : prev
+        );
+        
+        const createdAt = (firstMembership as any).created_at;
+        if (!createdAt) return false;
+        
+        const firstPurchaseDate = new Date(createdAt).toISOString().split('T')[0];
+        return firstPurchaseDate >= dateRange.startDate && firstPurchaseDate <= dateRange.endDate;
+    }).length;
+
+    return {
+        totalRevenue: Math.round(totalRevenue),
+        weightedCost: Math.round(weightedCost),
+        additionalCost,
+        totalCost: Math.round(totalCost),
+        netProfit: Math.round(netProfit),
+        uniqueCustomers,
+        avgNetProfitPerCustomer: Math.round(avgNetProfitPerCustomer),
+        newCustomers,
+        dateRange: `${dateRange.startDate} ~ ${dateRange.endDate}`
+    };
+};
+
+// 페이백 기간 데이터를 엑셀로 내보내는 함수
+export const exportPaybackPeriodToExcel = (paybackData: any, cacData: any) => {
+    const wb = XLSX.utils.book_new();
+    
+    // 페이백 기간 계산
+    const paybackPeriod = cacData.customCAC ? cacData.customCAC / paybackData.avgNetProfitPerCustomer : 0;
+    
+    // 페이백 기간 요약 데이터
+    const summaryData = [
+        { 지표: "전체 결제 금액 (원)", 값: paybackData.totalRevenue.toLocaleString("ko-KR") },
+        { 지표: "가중 평균 원가 (원)", 값: paybackData.weightedCost.toLocaleString("ko-KR") },
+        { 지표: "추가 비용 (원)", 값: paybackData.additionalCost.toLocaleString("ko-KR") },
+        { 지표: "총 원가 (원)", 값: paybackData.totalCost.toLocaleString("ko-KR") },
+        { 지표: "순이익 (원)", 값: paybackData.netProfit.toLocaleString("ko-KR") },
+        { 지표: "전체 결제 고객 수", 값: paybackData.uniqueCustomers.toLocaleString("ko-KR") },
+        { 지표: "고객 당 평균 순이익 (원)", 값: paybackData.avgNetProfitPerCustomer.toLocaleString("ko-KR") },
+        { 지표: "신규 고객 수", 값: paybackData.newCustomers.toLocaleString("ko-KR") },
+        { 지표: "CAC (원)", 값: (cacData.customCAC || 0).toLocaleString("ko-KR") },
+        { 지표: "페이백 기간 (개월)", 값: paybackPeriod > 0 ? (paybackPeriod / 30).toFixed(2) : "0" },
+        { 지표: "분석 기간", 값: paybackData.dateRange }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws, "페이백 기간 요약");
+
+    XLSX.writeFile(wb, `페이백기간_분석_${new Date().toISOString().split("T")[0]}.xlsx`);
+};
+
 
