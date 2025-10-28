@@ -28,10 +28,6 @@ const CustomerPage = () => {
     const [isRefundsLoading, setIsRefundsLoading] = useState(true);
     const [isRefundsError, setIsRefundsError] = useState(false);
     
-    // 일반 회원 필터링 모달 상태
-    const [isGeneralMemberModalOpen, setIsGeneralMemberModalOpen] = useState(false);
-    const [selectedGeneralMemberType, setSelectedGeneralMemberType] = useState<string>("일반 회원");
-    
     // 회원 등록 모달 상태
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
     const [registerForm, setRegisterForm] = useState({
@@ -146,39 +142,6 @@ const CustomerPage = () => {
         return "일반 회원"; // 기본값
     };
 
-    // 일반 회원 필터링 모달 핸들러들
-    const handleGeneralMemberClick = () => {
-        setSelectedGeneralMemberType("일반 회원"); // 하위 선택 상태 초기화
-        setIsGeneralMemberModalOpen(true);
-    };
-
-    const handleCloseGeneralMemberModal = () => {
-        setIsGeneralMemberModalOpen(false);
-    };
-
-    const handleGeneralMemberTypeSelect = (type: string) => {
-        setSelectedGeneralMemberType(type);
-        setSelectedMemberType("일반 회원"); // 일반 회원 카테고리로 설정
-        setIsGeneralMemberModalOpen(false);
-        
-        // 선택된 타입에 따라 필터링
-        let filteredData: Member[] = [];
-        
-        if (type === "일반 회원") {
-            // 필터링 없이 전체 회원 데이터
-            filteredData = allMembers;
-        } else if (type === "멤버십 구매 회원") {
-            // 멤버십이 있는 회원만
-            filteredData = allMembers.filter(member => member.memberships && member.memberships.length > 0);
-        } else if (type === "회원가입만") {
-            // 일반 회원 중에 멤버십 구매 회원을 뺀 사람
-            const membersWithMemberships = allMembers.filter(member => member.memberships && member.memberships.length > 0);
-            filteredData = allMembers.filter(member => !membersWithMemberships.some(m => m.id === member.id));
-        }
-        
-        setMembers(filteredData);
-        setCurrentPage(1);
-    };
 
     // 회원 구분별 필터링
     let filteredMembers = selectedMemberType === "전체 회원"
@@ -391,19 +354,15 @@ const CustomerPage = () => {
             setAllMembers(sortedAllMembers);
             
             // 현재 선택된 필터에 따라 데이터 설정
-            if (selectedGeneralMemberType === "일반 회원") {
+            if (selectedMemberType === "전체 회원") {
                 setMembers(sortedAllMembers);
-            } else if (selectedGeneralMemberType === "멤버십 구매 회원") {
+            } else if (selectedMemberType === "일반 회원") {
+                // 일반 회원 = 멤버십 구매 회원과 동일하게 처리
                 const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
                 setMembers(membersWithMemberships);
-            } else if (selectedGeneralMemberType === "회원가입만") {
-                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
-                const membersWithoutMemberships = sortedAllMembers.filter(member => !membersWithMemberships.some(m => m.id === member.id));
-                setMembers(membersWithoutMemberships);
             } else {
-                // 기본적으로 멤버십이 있는 회원만 필터링
-                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
-                setMembers(membersWithMemberships);
+                const filteredData = sortedAllMembers.filter(member => getMemberType(member) === selectedMemberType);
+                setMembers(filteredData);
             }
             setRefunds(refundsData.refunds);
             
@@ -447,8 +406,7 @@ const CustomerPage = () => {
 
     // 엑셀 다운로드 핸들러
     const handleExcelDownload = () => {
-        const currentCategory = selectedMemberType === "일반 회원" ? selectedGeneralMemberType : selectedMemberType;
-        exportMembersToExcel(filteredMembers, currentCategory);
+        exportMembersToExcel(filteredMembers, selectedMemberType);
     };
 
     const handleRegisterSubmit = async () => {
@@ -539,19 +497,15 @@ const CustomerPage = () => {
             setAllMembers(sortedAllMembers);
             
             // 현재 선택된 필터에 따라 데이터 설정
-            if (selectedGeneralMemberType === "일반 회원") {
+            if (selectedMemberType === "전체 회원") {
                 setMembers(sortedAllMembers);
-            } else if (selectedGeneralMemberType === "멤버십 구매 회원") {
+            } else if (selectedMemberType === "일반 회원") {
+                // 일반 회원 = 멤버십 구매 회원과 동일하게 처리
                 const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
                 setMembers(membersWithMemberships);
-            } else if (selectedGeneralMemberType === "회원가입만") {
-                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
-                const membersWithoutMemberships = sortedAllMembers.filter(member => !membersWithMemberships.some(m => m.id === member.id));
-                setMembers(membersWithoutMemberships);
             } else {
-                // 기본적으로 멤버십이 있는 회원만 필터링
-                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
-                setMembers(membersWithMemberships);
+                const filteredData = sortedAllMembers.filter(member => getMemberType(member) === selectedMemberType);
+                setMembers(filteredData);
             }
             setRefunds(refundsData.refunds);
             
@@ -614,20 +568,19 @@ const CustomerPage = () => {
                         <button
                             key={memberType}
                             onClick={() => {
-                                if (memberType === "일반 회원") {
-                                    handleGeneralMemberClick();
+                                setSelectedMemberType(memberType);
+                                setCurrentPage(1);
+                                
+                                // 카테고리별 필터링
+                                if (memberType === "전체 회원") {
+                                    setMembers(allMembers);
+                                } else if (memberType === "일반 회원") {
+                                    // 일반 회원 = 멤버십 구매 회원과 동일하게 처리
+                                    const membersWithMemberships = allMembers.filter(member => member.memberships && member.memberships.length > 0);
+                                    setMembers(membersWithMemberships);
                                 } else {
-                                    setSelectedMemberType(memberType);
-                                    setSelectedGeneralMemberType("일반 회원"); // 일반 회원 하위 선택 상태 초기화
-                                    setCurrentPage(1);
-                                    
-                                    // 다른 카테고리 선택 시 allMembers에서 필터링
-                                    if (memberType === "전체 회원") {
-                                        setMembers(allMembers);
-                                    } else {
-                                        const filteredData = allMembers.filter(member => getMemberType(member) === memberType);
-                                        setMembers(filteredData);
-                                    }
+                                    const filteredData = allMembers.filter(member => getMemberType(member) === memberType);
+                                    setMembers(filteredData);
                                 }
                             }}
                             className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
@@ -666,7 +619,7 @@ const CustomerPage = () => {
             {/* 회원 요약 */}
             <div className="mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-                    {selectedMemberType === "일반 회원" ? selectedGeneralMemberType : selectedMemberType} ({filteredMembers.length})
+                    {selectedMemberType} ({filteredMembers.length})
                 </h2>
             </div>
 
@@ -970,54 +923,6 @@ const CustomerPage = () => {
                                 className="w-full bg-red-600 text-white py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base lg:text-lg font-medium"
                             >
                                 {isSubmitting ? '저장 중...' : '저장'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 일반 회원 필터링 모달 */}
-            {isGeneralMemberModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
-                        <div className="flex justify-between items-center mb-4 sm:mb-6">
-                            <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">일반 회원 필터링</h3>
-                            <button
-                                onClick={handleCloseGeneralMemberModal}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div className="space-y-3 sm:space-y-4">
-                            <p className="text-sm sm:text-base text-gray-600 mb-4">
-                                표시할 회원 유형을 선택하세요:
-                            </p>
-                            
-                            {["일반 회원", "회원가입만", "멤버십 구매 회원"].map((type) => (
-                                <button
-                                    key={type}
-                                    onClick={() => handleGeneralMemberTypeSelect(type)}
-                                    className={`w-full px-4 py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors ${
-                                        selectedGeneralMemberType === type
-                                            ? 'bg-mainRed text-white shadow-sm'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    {type}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="mt-4 sm:mt-6">
-                            <button
-                                onClick={handleCloseGeneralMemberModal}
-                                className="w-full bg-gray-300 text-gray-700 py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl hover:bg-gray-400 transition-colors text-sm sm:text-base lg:text-lg font-medium"
-                            >
-                                취소
                             </button>
                         </div>
                     </div>

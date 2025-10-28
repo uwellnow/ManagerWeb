@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useDate } from "../../context/DateContext";
 import { ordersApi } from "../../api/orders";
+import { membersApi } from "../../api/members";
 import { exportOrdersToExcel } from "../../utils/excelExport";
 import type { OrderResponse } from "../../types/DTO/OrderResponseDto";
+import type { Member } from "../../types/DTO/MemberResponseDto";
 
 const OrderPage = () => {
     const { isAuthenticated } = useAuth();
@@ -17,6 +19,8 @@ const OrderPage = () => {
     const [selectedStore, setSelectedStore] = useState<string>("오늘의 전체 주문");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+    const [isMemberFiltered, setIsMemberFiltered] = useState(false);
+    const [members, setMembers] = useState<Member[]>([]);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -32,6 +36,10 @@ const OrderPage = () => {
                 setIsLoading(true);
                 setIsError(false);
                 const data = await ordersApi.getOrders();
+                
+                // 회원 데이터도 함께 fetch
+                const membersData = await membersApi.getMembers();
+                setMembers(membersData.members);
 
                 console.log('Original orders data:', data); // Debug log
                 console.log('All store names:', [...new Set(data.map(order => order.store_name))]); // Debug log
@@ -80,13 +88,61 @@ const OrderPage = () => {
     // 매장 목록 추출 (전체 데이터에서 고정)
     const stores = ["모든 전체 주문", "오늘의 전체 주문", ...Array.from(new Set(allOrders.map(order => order.store_name)))];
 
-    // 필터링된 주문 데이터
+    // 회원 구분 결정 함수 - CustomerPage의 getMemberType 로직 복사
+    const getMemberType = (member: Member): string => {
+        // 특정 전화번호들은 관리자로 분류 (하이픈 없는 형식)
+        const adminPhones = [
+            '01056124767', '01085172296', '01027455601', '01020412103', '01043200842'
+        ];
+        if (adminPhones.includes(member.phone)) {
+            return "관리자";
+        }
+        
+        // member_type이 있으면 그대로 사용 (데이터베이스 값 우선)
+        if (member.member_type) {
+            return member.member_type;
+        }
+        
+        // member_type이 없는 경우에만 멤버십 이름으로 구분
+        if (member.memberships.length === 0) {
+            return "일반 회원"; // 기본값
+        }
+        
+        const membershipNames = member.memberships.map(m => m.name);
+        
+        if (membershipNames.some(name => name.includes("트레이너"))) {
+            return "트레이너";
+        }
+        if (membershipNames.some(name => name.includes("서포터즈") || name.includes("앰버서더"))) {
+            return "서포터즈";
+        }
+        if (membershipNames.some(name => name.includes("관리자"))) {
+            return "관리자";
+        }
+        
+        return "일반 회원"; // 기본값
+    };
 
-    const filteredOrders = selectedStore === "모든 전체 주문"
+    // 회원 필터링 함수 (일반 회원만 표시)
+    const filterMembers = (orders: OrderResponse) => {
+        if (!isMemberFiltered) return orders;
+        
+        // 일반 회원만 필터링 (트레이너, 서포터즈, 관리자 제외)
+        const generalMembers = members.filter(member => getMemberType(member) === "일반 회원");
+        
+        const generalMemberNames = new Set(generalMembers.map(member => member.name));
+        
+        return orders.filter(order => generalMemberNames.has(order.user_name));
+    };
+
+    // 필터링된 주문 데이터
+    const storeFilteredOrders = selectedStore === "모든 전체 주문"
         ? orders  // 모든 전체 주문: 매장명 필터링 없음
         : selectedStore === "오늘의 전체 주문"
             ? orders  // 오늘의 전체 주문: 매장명 필터링 없음
             : orders.filter(order => order.store_name === selectedStore); // 특정 매장: 매장명 필터링
+
+    const filteredOrders = filterMembers(storeFilteredOrders);
 
     // 페이지네이션
     const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -126,7 +182,10 @@ const OrderPage = () => {
 
     // 엑셀 다운로드 핸들러
     const handleExcelDownload = () => {
-        exportOrdersToExcel(filteredOrders, selectedStore);
+        const fileName = isMemberFiltered 
+            ? `${selectedStore}_일반회원필터링` 
+            : selectedStore;
+        exportOrdersToExcel(filteredOrders, fileName);
     };
 
     if (!isAuthenticated) {
@@ -196,7 +255,29 @@ const OrderPage = () => {
 
             {/* 주문 요약 */}
             <div className="mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">주문 ({filteredOrders.length})</h2>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">주문 ({filteredOrders.length})</h2>
+                    
+                    {/* 일반 회원 필터링 체크박스 */}
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="checkbox"
+                            id="memberFilter"
+                            checked={isMemberFiltered}
+                            onChange={(e) => {
+                                setIsMemberFiltered(e.target.checked);
+                                setCurrentPage(1); // 필터링 변경 시 첫 페이지로 이동
+                            }}
+                            className="w-4 h-4 text-mainRed bg-red-100 rounded"
+                        />
+                        <label htmlFor="memberFilter" className="text-sm sm:text-base font-bold text-mainRed cursor-pointer">
+                            일반 회원 필터링
+                        </label>
+                        <span className="text-xs text-gray-500">
+                            (일반 회원만 표시)
+                        </span>
+                    </div>
+                </div>
             </div>
 
             {/* 주문 테이블 */}

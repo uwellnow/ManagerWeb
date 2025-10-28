@@ -13,12 +13,23 @@ export const exportOrdersToExcel = (orders: OrderData[], selectedStore: string) 
         '운동 시점': order.product_time,
         '주문 시간': formatOrderTime(order.order_time),
         '사용자': order.user_name,
-        '멤버십 사용': `${order.total_count_at_purchase - order.remain_count_after_purchase}/${order.total_count_at_purchase}`,
+        '멤버십 사용': ` ${order.total_count_at_purchase - order.remain_count_after_purchase}/${order.total_count_at_purchase}`,
         '결제 상태': '완료'
     }));
 
     // CSV 변환
     const worksheet = XLSX.utils.json_to_sheet(csvData);
+    
+    // 멤버십 사용 컬럼을 텍스트로 설정하여 슬래시 변환 방지
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+    for (let row = range.s.r + 1; row <= range.e.r; row++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: 6 }); // 멤버십 사용 컬럼 (G열)
+        if (worksheet[cellAddress]) {
+            worksheet[cellAddress].t = 's'; // 문자열 타입으로 설정
+            worksheet[cellAddress].z = '@'; // 텍스트 형식으로 강제 설정
+        }
+    }
+    
     const csvContent = XLSX.utils.sheet_to_csv(worksheet);
     
     // UTF-8 BOM 추가 (Excel에서 한글 정상 표시)
@@ -106,14 +117,26 @@ export const exportMembersToExcel = (members: Member[], selectedCategory: string
         '성별': member.gender === 'M' ? '남' : member.gender === 'F' ? '여' : '-',
         '생년월일': member.birth || '-',
         '전화번호': formatPhoneNumber(member.phone),
+        '회원 등록 매장': member.registrant_store || '-',
         '멤버십 첫 구매': getFirstPurchaseDate(member),
         '결제일시': getPaymentDate(member),
-        '멤버십 현황': getUsageStatus(member),
+        '멤버십 현황': ` ${getUsageStatus(member)}`,
         '멤버십 개수': member.memberships.length
     }));
 
     // CSV 변환
     const worksheet = XLSX.utils.json_to_sheet(csvData);
+    
+    // 멤버십 현황 컬럼을 텍스트로 설정하여 슬래시 변환 방지
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+    for (let row = range.s.r + 1; row <= range.e.r; row++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: 9 }); // 멤버십 현황 컬럼 (J열)
+        if (worksheet[cellAddress]) {
+            worksheet[cellAddress].t = 's'; // 문자열 타입으로 설정
+            worksheet[cellAddress].z = '@'; // 텍스트 형식으로 강제 설정
+        }
+    }
+    
     const csvContent = XLSX.utils.sheet_to_csv(worksheet);
     
     // UTF-8 BOM 추가 (Excel에서 한글 정상 표시)

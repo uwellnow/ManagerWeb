@@ -11,11 +11,17 @@ import {
     calculateRepurchaseRate,
     calculateAvgRepurchasePeriod,
     calculateAvgConsumptionPeriodFromOrders,
+    calculateLTV,
+    exportLTVToExcel,
+    calculateCAC,
+    exportCACToExcel,
+    calculatePaybackPeriod,
+    exportPaybackPeriodToExcel,
 } from "../../utils/excelExport.kpi";
 import type {OrderData} from "../../types/DTO/OrderResponseDto";
 import type {Member} from "../../types/DTO/MemberResponseDto";
 
-type KPIType = "리텐션" | "활성드링커" | "평균마진" | "재결제 및 소진기간" | "LTV" | "CAC";
+type KPIType = "리텐션" | "활성드링커" | "평균마진" | "재결제 및 소진기간" | "LTV" | "CAC" | "페이백 기간";
 
 const KPIPage = () => {
     const [orders, setOrders] = useState<OrderData[]>([]);
@@ -31,6 +37,13 @@ const KPIPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [cohortSummary, setCohortSummary] = useState<any[]>([]);
     const [membersData, setMembersData] = useState<Member[]>([]);
+    const [ltvData, setLtvData] = useState<any | null>(null);
+    const [customRetention, setCustomRetention] = useState<string>("");
+    const [calculatedLTV, setCalculatedLTV] = useState<any | null>(null);
+    const [cacData, setCacData] = useState<any | null>(null);
+    const [customCouponCount, setCustomCouponCount] = useState<string>("");
+    const [calculatedCAC, setCalculatedCAC] = useState<any | null>(null);
+    const [paybackData, setPaybackData] = useState<any | null>(null);
 
     // 주문 데이터 불러오기
     useEffect(() => {
@@ -92,6 +105,44 @@ const KPIPage = () => {
         }
         setFilteredOrders(filtered);
     }, [orders, dateRange, selectedUser]);
+
+    // 사용자 입력에 따른 실시간 LTV 계산
+    useEffect(() => {
+        if (ltvData && customRetention) {
+            const retentionValue = parseFloat(customRetention);
+            if (!isNaN(retentionValue) && retentionValue > 0) {
+                const newLTV = ltvData.avgMarginPerCup * ltvData.avgCupsPerCustomer * retentionValue;
+                setCalculatedLTV({
+                    ...ltvData,
+                    customRetention: retentionValue,
+                    customLTV: Math.round(newLTV)
+                });
+            } else {
+                setCalculatedLTV(null);
+            }
+        } else {
+            setCalculatedLTV(null);
+        }
+    }, [ltvData, customRetention]);
+
+    // 사용자 입력에 따른 실시간 CAC 계산
+    useEffect(() => {
+        if (cacData && customCouponCount) {
+            const couponCount = parseFloat(customCouponCount);
+            if (!isNaN(couponCount) && couponCount > 0) {
+                const newCAC = couponCount * 1800 * cacData.newCustomers;
+                setCalculatedCAC({
+                    ...cacData,
+                    customCouponCount: couponCount,
+                    customCAC: Math.round(newCAC)
+                });
+            } else {
+                setCalculatedCAC(null);
+            }
+        } else {
+            setCalculatedCAC(null);
+        }
+    }, [cacData, customCouponCount]);
 
     // 리텐션용 데이터 가공 ----------------------------
     const groupByUserForRetention = (orders: OrderData[]) => {
@@ -163,6 +214,18 @@ const KPIPage = () => {
             const repurchaseRate = calculateRepurchaseRate(membersData, orders, dateRange);
             const avgRepurchasePeriod = calculateAvgRepurchasePeriod(membersData, orders, dateRange);
             const avgByTicket = calculateAvgConsumptionPeriodFromOrders(membersData, orders, dateRange);
+            
+            // LTV 계산
+            const ltvResult = calculateLTV(filteredOrders);
+            setLtvData(ltvResult);
+            
+            // CAC 계산
+            const cacResult = calculateCAC(membersData, dateRange);
+            setCacData(cacResult);
+
+            // 페이백 기간 계산
+            const paybackResult = calculatePaybackPeriod(filteredOrders, membersData, dateRange);
+            setPaybackData(paybackResult);
 
             // 전체 KPI 요약 테이블
             const allKPISummary = [
@@ -176,6 +239,14 @@ const KPIPage = () => {
                     항목: `${ticket} 평균 소진기간(일)`,
                     값: Math.round(Number(avg)),
                 })),
+                // LTV 관련 지표 추가
+                { 항목: "평균 구매 컵 수 (잔/고객)", 값: ltvResult.avgCupsPerCustomer.toFixed(2) },
+                { 항목: "누적 리텐션", 값: ltvResult.cumulativeRetention.toFixed(2) },
+                { 항목: "LTV (원)", 값: ltvResult.ltv.toLocaleString("ko-KR") },
+                // CAC 관련 지표 추가
+                { 항목: "신규 고객 수", 값: cacResult.newCustomers.toLocaleString("ko-KR") },
+                { 항목: "고객 당 평균 순이익 (원)", 값: paybackData ? paybackData.avgNetProfitPerCustomer.toLocaleString("ko-KR") : "0" },
+                { 항목: "전체 순이익 (원)", 값: paybackData ? paybackData.netProfit.toLocaleString("ko-KR") : "0" },
             ];
 
             // 근거 데이터 준비
@@ -212,6 +283,16 @@ const KPIPage = () => {
             exportBasicKPIToExcel(filteredOrders, dateRange, selectedKPI, selectedUser);
         } else if (selectedKPI === "재결제 및 소진기간"){
             exportMembershipKPIToExcel(membersData, orders, dateRange);
+        } else if (selectedKPI === "LTV" && ltvData) {
+            // 사용자 입력값이 있으면 그것을 사용, 없으면 기본값 사용
+            const exportData = calculatedLTV || ltvData;
+            exportLTVToExcel(exportData);
+        } else if (selectedKPI === "CAC" && cacData) {
+            // 사용자 입력값이 있으면 그것을 사용, 없으면 기본값 사용
+            const exportData = calculatedCAC || cacData;
+            exportCACToExcel(exportData);
+        } else if (selectedKPI === "페이백 기간" && paybackData && calculatedCAC) {
+            exportPaybackPeriodToExcel(paybackData, calculatedCAC);
         }
         else {
             alert("현재 선택한 KPI는 엑셀 내보내기가 지원되지 않습니다.");
@@ -286,6 +367,7 @@ const KPIPage = () => {
                         <option value="재결제 및 소진기간">재결제 및 소진기간</option>
                         <option value="LTV">LTV</option>
                         <option value="CAC">CAC</option>
+                        <option value="페이백 기간">페이백 기간</option>
                     </select>
                 </div>
 
@@ -544,6 +626,257 @@ const KPIPage = () => {
                                         ))}
                                         </tbody>
                                     </table>
+                                </div>
+                            )}
+
+                            {/* LTV 결과 표시 */}
+                            {selectedKPI === "LTV" && ltvData && (
+                                <div>
+                                    <h2 className="text-lg font-semibold mb-3">
+                                        LTV 분석 결과
+                                    </h2>
+                                    
+                                    {/* 사용자 입력 필드 */}
+                                    <div className="mb-4 p-4 bg-red-50 rounded-lg">
+                                        <h3 className="font-semibold text-red-800 mb-2">사용자 정의 리텐션 입력</h3>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-2">
+                                                <label className="text-sm font-medium text-gray-700">누적 리텐션:</label>
+                                                <input
+                                                    type="number"
+                                                    value={customRetention}
+                                                    onChange={(e) => setCustomRetention(e.target.value)}
+                                                    placeholder="예: 2.5"
+                                                    step="0.1"
+                                                    min="0"
+                                                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none bg-gray-100 focus:ring-2 focus:ring-red-400 focus:border-transparent w-32"
+                                                />
+                                            </div>
+                                            {calculatedLTV && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium text-gray-700">계산된 LTV:</span>
+                                                    <span className="font-bold text-lg text-red-600">
+                                                        {calculatedLTV.customLTV.toLocaleString("ko-KR")}원
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-600 mt-2">
+                                            기본 누적 리텐션: {ltvData.cumulativeRetention.toFixed(2)} | 
+                                            기본 LTV: {ltvData.ltv.toLocaleString("ko-KR")}원
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div className="bg-red-50 p-4 rounded-lg">
+                                            <h3 className="font-semibold text-red-800 mb-2">핵심 지표</h3>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between">
+                                                    <span>평균 마진 (원/잔):</span>
+                                                    <span className="font-semibold">{ltvData.avgMarginPerCup.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>평균 구매 컵 수 (잔/고객):</span>
+                                                    <span className="font-semibold">{ltvData.avgCupsPerCustomer.toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>누적 리텐션:</span>
+                                                    <span className="font-semibold">{calculatedLTV ? calculatedLTV.customRetention.toFixed(2) : ltvData.cumulativeRetention.toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between border-t pt-2">
+                                                    <span className="font-bold text-lg">LTV (원):</span>
+                                                    <span className="font-bold text-lg text-red-600">
+                                                        {calculatedLTV ? calculatedLTV.customLTV.toLocaleString("ko-KR") : ltvData.ltv.toLocaleString("ko-KR")}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h3 className="font-semibold text-gray-800 mb-2">기본 통계</h3>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between">
+                                                    <span>총 주문 수:</span>
+                                                    <span className="font-semibold">{ltvData.totalOrders.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>고유 고객 수:</span>
+                                                    <span className="font-semibold">{ltvData.uniqueCustomers.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>총 매출 (원):</span>
+                                                    <span className="font-semibold">{ltvData.totalRevenue.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>총 원가 (원):</span>
+                                                    <span className="font-semibold">{ltvData.totalCost.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* CAC 결과 표시 */}
+                            {selectedKPI === "CAC" && cacData && (
+                                <div>
+                                    <h2 className="text-lg font-semibold mb-3">
+                                        CAC 분석 결과
+                                    </h2>
+                                    
+                                    {/* 사용자 입력 필드 */}
+                                    <div className="mb-4 p-4 bg-red-50 rounded-lg">
+                                        <h3 className="font-semibold text-red-800 mb-2">사용자 정의 쿠폰 수 입력</h3>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-2">
+                                                <label className="text-sm font-medium text-gray-700">쿠폰 수:</label>
+                                                <input
+                                                    type="number"
+                                                    value={customCouponCount}
+                                                    onChange={(e) => setCustomCouponCount(e.target.value)}
+                                                    placeholder="예: 100"
+                                                    step="1"
+                                                    min="0"
+                                                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none bg-gray-100 focus:ring-2 focus:ring-red-400 focus:border-transparent w-32"
+                                                />
+                                            </div>
+                                            {calculatedCAC && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium text-gray-700">계산된 CAC:</span>
+                                                    <span className="font-bold text-lg text-red-600">
+                                                        {calculatedCAC.customCAC.toLocaleString("ko-KR")}원
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-600 mt-2">
+                                            신규 고객 수: {cacData.newCustomers}명 | 쿠폰 단가: {cacData.couponPrice.toLocaleString("ko-KR")}원
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div className="bg-red-50 p-4 rounded-lg">
+                                            <h3 className="font-semibold text-red-800 mb-2">핵심 지표</h3>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between">
+                                                    <span>신규 고객 수:</span>
+                                                    <span className="font-semibold">{cacData.newCustomers.toLocaleString("ko-KR")}명</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>쿠폰 단가 (원):</span>
+                                                    <span className="font-semibold">{cacData.couponPrice.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>쿠폰 수:</span>
+                                                    <span className="font-semibold">{calculatedCAC ? calculatedCAC.customCouponCount.toLocaleString("ko-KR") : "0"}개</span>
+                                                </div>
+                                                <div className="flex justify-between border-t pt-2">
+                                                    <span className="font-bold text-lg">CAC (원):</span>
+                                                    <span className="font-bold text-lg text-red-600">
+                                                        {calculatedCAC ? calculatedCAC.customCAC.toLocaleString("ko-KR") : "0"}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h3 className="font-semibold text-gray-800 mb-2">기본 정보</h3>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between">
+                                                    <span>분석 기간:</span>
+                                                    <span className="font-semibold">{cacData.dateRange}</span>
+                                                </div>
+                                                {calculatedCAC && (
+                                                    <div className="flex justify-between">
+                                                        <span>총 마케팅 비용 (원):</span>
+                                                        <span className="font-semibold">{(calculatedCAC.customCouponCount * cacData.couponPrice).toLocaleString("ko-KR")}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 페이백 기간 분석 결과 */}
+                            {selectedKPI === "페이백 기간" && paybackData && (
+                                <div>
+                                    <h2 className="text-lg font-semibold mb-3">페이백 기간 분석 결과</h2>
+                                    
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div className="bg-red-50 p-4 rounded-lg">
+                                            <h3 className="font-semibold text-red-800 mb-2">핵심 지표</h3>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between">
+                                                    <span>전체 결제 금액 (원):</span>
+                                                    <span className="font-semibold">{paybackData.totalRevenue.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>총 원가 (원):</span>
+                                                    <span className="font-semibold">{paybackData.totalCost.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>순이익 (원):</span>
+                                                    <span className="font-semibold">{paybackData.netProfit.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>전체 결제 고객 수:</span>
+                                                    <span className="font-semibold">{paybackData.uniqueCustomers.toLocaleString("ko-KR")}명</span>
+                                                </div>
+                                                <div className="flex justify-between border-t pt-2">
+                                                    <span className="font-bold text-lg">고객 당 평균 순이익 (원):</span>
+                                                    <span className="font-bold text-lg text-red-600">
+                                                        {paybackData.avgNetProfitPerCustomer.toLocaleString("ko-KR")}
+                                                    </span>
+                                                </div>
+                                                {calculatedCAC && (
+                                                    <div className="flex justify-between border-t pt-2">
+                                                        <span className="font-bold text-lg">페이백 기간 (개월):</span>
+                                                        <span className="font-bold text-lg text-red-600">
+                                                            {((calculatedCAC.customCAC / paybackData.avgNetProfitPerCustomer) / 30).toFixed(2)}개월
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h3 className="font-semibold text-gray-800 mb-2">원가 분석</h3>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between">
+                                                    <span>가중 평균 원가 (원):</span>
+                                                    <span className="font-semibold">{paybackData.weightedCost.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>추가 비용 (원):</span>
+                                                    <span className="font-semibold">{paybackData.additionalCost.toLocaleString("ko-KR")}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>신규 고객 수:</span>
+                                                    <span className="font-semibold">{paybackData.newCustomers.toLocaleString("ko-KR")}명</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>분석 기간:</span>
+                                                    <span className="font-semibold">{paybackData.dateRange}</span>
+                                                </div>
+                                                {calculatedCAC && (
+                                                    <div className="flex justify-between border-t pt-2">
+                                                        <span className="font-bold text-lg">CAC (원):</span>
+                                                        <span className="font-bold text-lg text-red-600">
+                                                            {calculatedCAC.customCAC.toLocaleString("ko-KR")}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="mb-4 p-4 bg-yellow-50 rounded-lg">
+                                        <h3 className="font-semibold text-yellow-800 mb-2">페이백 기간 계산 공식</h3>
+                                        <div className="text-sm text-gray-700 space-y-1">
+                                            <p><strong>페이백 기간 = CAC ÷ 고객 당 평균 순이익</strong></p>
+                                            <p><strong>순이익 = 전체 결제 금액 - 원가</strong></p>
+                                            <p><strong>원가 = 가중 평균 원가 + 추가 비용 (15,000원)</strong></p>
+                                            <p><strong>고객 당 평균 순이익 = 순이익 ÷ 전체 결제 고객 수</strong></p>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
