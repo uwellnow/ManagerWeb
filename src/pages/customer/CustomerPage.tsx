@@ -27,6 +27,7 @@ const CustomerPage = () => {
     const [refunds, setRefunds] = useState<RefundLog[]>([]);
     const [isRefundsLoading, setIsRefundsLoading] = useState(true);
     const [isRefundsError, setIsRefundsError] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
     
     // 회원 등록 모달 상태
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -148,6 +149,12 @@ const CustomerPage = () => {
         ? members
         : members.filter(member => getMemberType(member) === selectedMemberType);
     
+    // 이름 검색 필터
+    if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        filteredMembers = filteredMembers.filter(member => (member.name || "").toLowerCase().includes(q));
+    }
+
     // 날짜 필터링 (첫 멤버십 구매 날짜 기준)
     if (selectedDate) {
         filteredMembers = filteredMembers.filter(member => {
@@ -595,8 +602,17 @@ const CustomerPage = () => {
                     ))}
                 </div>
                 
-                {/* 버튼들 */}
-                <div className="flex justify-center lg:justify-end gap-2 sm:gap-3">
+                {/* 검색 + 버튼들 */}
+                <div className="flex flex-col sm:flex-row justify-center lg:justify-end gap-2 sm:gap-3 w-full lg:w-auto">
+                    <div className="w-full sm:w-64 lg:w-72">
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                            placeholder="회원명 검색"
+                            className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
+                        />
+                    </div>
                     <button 
                         onClick={handleExcelDownload}
                         className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-transparent text-black rounded-lg border border-gray-800 sm:rounded-xl hover:bg-gray-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm flex items-center gap-2">
