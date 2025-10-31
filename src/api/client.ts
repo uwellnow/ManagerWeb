@@ -1,6 +1,6 @@
 import { tokenStorage } from './auth';
 
-// Vercel의 프록시를 사용하여 CORS 문제 해결
+// 로컬 개발 서버 프록시를 사용하여 CORS 문제 해결
 const API_BASE_URL = '/api';
 
 interface RequestOptions extends RequestInit {
