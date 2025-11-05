@@ -139,7 +139,7 @@ const OrderPage = () => {
     const storeFilteredOrders = selectedStore === "모든 전체 주문"
         ? orders  // 모든 전체 주문: 매장명 필터링 없음
         : selectedStore === "오늘의 전체 주문"
-            ? orders  // 오늘의 전체 주문: 매장명 필터링 없음
+            ? orders.filter(order => order.store_name != "테스트")
             : orders.filter(order => order.store_name === selectedStore); // 특정 매장: 매장명 필터링
 
     const filteredOrders = filterMembers(storeFilteredOrders);

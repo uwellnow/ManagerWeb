@@ -20,6 +20,7 @@ const sideItems = [
     {label: '재고', img: stock, path: '/stock'},
     {label: '에러 로그', img: error, path: '/error-log'},
     {label: 'KPI 분석', img: error, path: '/kpi'},
+    {label: '점검중', img: error, path: '/maintenance'},
 ]
 
 const Sidebar = ({ onClose }: SidebarProps) => {

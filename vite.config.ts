@@ -9,7 +9,7 @@ export default defineConfig({
       '/api': {
         target: 'https://manage-uwellnow.com',
         changeOrigin: true,
-        secure: true,
+        secure: false,
       }
     }
   }
