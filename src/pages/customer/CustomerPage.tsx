@@ -28,6 +28,7 @@ const CustomerPage = () => {
     const [isRefundsLoading, setIsRefundsLoading] = useState(true);
     const [isRefundsError, setIsRefundsError] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [onlyMembershipMembers, setOnlyMembershipMembers] = useState(false);
     
     // 회원 등록 모달 상태
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -68,10 +69,8 @@ const CustomerPage = () => {
                 const sortedAllMembers = (data.members as Member[]).sort((a, b) => b.id - a.id);
                 setAllMembers(sortedAllMembers);
                 
-                // 기본적으로 멤버십이 있는 회원만 필터링하고 등록 최신 순으로 정렬 (id 기준 내림차순)
-                const membersWithMemberships = (data.members as Member[]).filter(member => member.memberships && member.memberships.length > 0);
-                const sortedMembers = membersWithMemberships.sort((a, b) => b.id - a.id);
-                setMembers(sortedMembers);
+                // 초기에는 전체 회원을 표시 (멤버십 여부 상관없이)
+                setMembers(sortedAllMembers);
             } catch (error) {
                 console.error('Failed to fetch members:', error);
                 setIsError(true);
@@ -149,6 +148,11 @@ const CustomerPage = () => {
         ? members
         : members.filter(member => getMemberType(member) === selectedMemberType);
     
+    // 멤버십 구매 회원만 필터링 (체크박스가 체크되었을 때)
+    if (onlyMembershipMembers) {
+        filteredMembers = filteredMembers.filter(member => member.memberships && member.memberships.length > 0);
+    }
+    
     // 이름 검색 필터
     if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
@@ -158,7 +162,8 @@ const CustomerPage = () => {
     // 날짜 필터링 (첫 멤버십 구매 날짜 기준)
     if (selectedDate) {
         filteredMembers = filteredMembers.filter(member => {
-            if (member.memberships.length === 0) return false;
+            // 멤버십이 없는 경우 날짜 필터링 적용 안 함 (전체 회원에 포함)
+            if (member.memberships.length === 0) return true;
             
             // id가 가장 낮은 멤버십 찾기 (첫 구매)
             const firstMembership = member.memberships.reduce((prev, current) => 
@@ -363,10 +368,6 @@ const CustomerPage = () => {
             // 현재 선택된 필터에 따라 데이터 설정
             if (selectedMemberType === "전체 회원") {
                 setMembers(sortedAllMembers);
-            } else if (selectedMemberType === "일반 회원") {
-                // 일반 회원 = 멤버십 구매 회원과 동일하게 처리
-                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
-                setMembers(membersWithMemberships);
             } else {
                 const filteredData = sortedAllMembers.filter(member => getMemberType(member) === selectedMemberType);
                 setMembers(filteredData);
@@ -506,10 +507,6 @@ const CustomerPage = () => {
             // 현재 선택된 필터에 따라 데이터 설정
             if (selectedMemberType === "전체 회원") {
                 setMembers(sortedAllMembers);
-            } else if (selectedMemberType === "일반 회원") {
-                // 일반 회원 = 멤버십 구매 회원과 동일하게 처리
-                const membersWithMemberships = sortedAllMembers.filter(member => member.memberships && member.memberships.length > 0);
-                setMembers(membersWithMemberships);
             } else {
                 const filteredData = sortedAllMembers.filter(member => getMemberType(member) === selectedMemberType);
                 setMembers(filteredData);
@@ -581,10 +578,6 @@ const CustomerPage = () => {
                                 // 카테고리별 필터링
                                 if (memberType === "전체 회원") {
                                     setMembers(allMembers);
-                                } else if (memberType === "일반 회원") {
-                                    // 일반 회원 = 멤버십 구매 회원과 동일하게 처리
-                                    const membersWithMemberships = allMembers.filter(member => member.memberships && member.memberships.length > 0);
-                                    setMembers(membersWithMemberships);
                                 } else {
                                     const filteredData = allMembers.filter(member => getMemberType(member) === memberType);
                                     setMembers(filteredData);
@@ -602,8 +595,8 @@ const CustomerPage = () => {
                     ))}
                 </div>
                 
-                {/* 검색 + 버튼들 */}
-                <div className="flex flex-col sm:flex-row justify-center lg:justify-end gap-2 sm:gap-3 w-full lg:w-auto">
+                {/* 검색 + 체크박스 + 버튼들 */}
+                <div className="flex flex-col sm:flex-row justify-center lg:justify-end gap-2 sm:gap-3 w-full lg:w-auto items-center">
                     <div className="w-full sm:w-64 lg:w-72">
                         <input
                             type="text"
@@ -613,6 +606,20 @@ const CustomerPage = () => {
                             className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
                         />
                     </div>
+                    
+                    {/* 멤버십 구매 회원만 체크박스 - 일반 회원 탭에서만 표시 */}
+                    {selectedMemberType === "일반 회원" && (
+                        <label className="flex items-center gap-2 cursor-pointer px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-colors whitespace-nowrap">
+                            <input
+                                type="checkbox"
+                                checked={onlyMembershipMembers}
+                                onChange={(e) => { setOnlyMembershipMembers(e.target.checked); setCurrentPage(1); }}
+                                className="w-4 h-4 text-mainRed bg-gray-100 border-gray-300 rounded focus:ring-mainRed focus:ring-2"
+                            />
+                            <span className="text-sm sm:text-base text-gray-700 font-medium">멤버십 구매 회원만</span>
+                        </label>
+                    )}
+                    
                     <button 
                         onClick={handleExcelDownload}
                         className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-transparent text-black rounded-lg border border-gray-800 sm:rounded-xl hover:bg-gray-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm flex items-center gap-2">
