@@ -2,16 +2,18 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { stocksApi } from "../../api/stocks";
-import type { StockResponse, StockData, StockLogResponse } from "../../types/DTO/StockResponseDto";
+import type { StockResponse, StockData, StockLogResponse, StorageStockResponse, ProductData } from "../../types/DTO/StockResponseDto";
 
 const StockPage = () => {
     const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [stocks, setStocks] = useState<StockResponse>([]);
+    const [productsData, setProductsData] = useState<ProductData[]>([]);
     const [stockLogs, setStockLogs] = useState<StockLogResponse>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
-    const [selectedStore, setSelectedStore] = useState<string>("전체 재고");
+    const [selectedStore, setSelectedStore] = useState<string>("중앙창고");
+    const [storageStocks, setStorageStocks] = useState<StorageStockResponse>([]);
     const [selectedLogStore, setSelectedLogStore] = useState<string>("전체 로그");
     const [currentPage, setCurrentPage] = useState(1);
     const [currentLogPage, setCurrentLogPage] = useState(1);
@@ -37,10 +39,11 @@ const StockPage = () => {
                 setIsError(false);
                 
                 // 재고 데이터, 제품 데이터, 로그 데이터를 병렬로 가져오기
-                const [stocksData, productsData, logsData] = await Promise.all([
+                const [stocksData, productsData, logsData, storageStocks] = await Promise.all([
                     stocksApi.getStocks(),
                     stocksApi.getProducts(),
-                    stocksApi.getStockLogs()
+                    stocksApi.getStockLogs(),
+                    stocksApi.getStorageStocks()
                 ]);
                 
                 // '테스트용' 제외
@@ -57,6 +60,8 @@ const StockPage = () => {
                 
                 setStocks(stocksWithCapacity);
                 setStockLogs(logsData);
+                setStorageStocks(storageStocks);
+                setProductsData(productsData);
 
             } catch (error) {
                 console.error('Failed to fetch data:', error);
@@ -70,15 +75,51 @@ const StockPage = () => {
     }, [isAuthenticated]);
 
     // 매장 목록 추출
-    const stores = ["전체 재고", ...Array.from(new Set(stocks.map(stock => stock.storeName)))];
+    const stores = ["중앙창고", ...Array.from(new Set(stocks.map(stock => stock.storeName)))];
     
     // 로그 매장 목록 추출
     const logStores = ["전체 로그", ...Array.from(new Set(stockLogs.map(log => log.store_name)))];
 
-    // 필터링된 재고 데이터 (ID 기준 오름차순)
-    const filteredStocks = selectedStore === "전체 재고" 
-        ? stocks.sort((a, b) => a.productId - b.productId)
-        : stocks.filter(stock => stock.storeName === selectedStore).sort((a, b) => a.productId - b.productId);
+    // 필터링된 재고 데이터 (중앙창고 포함)
+    const filteredStocks = selectedStore === "중앙창고"
+    ? productsData
+        .filter(product => {
+            // ID 1~7번 또는 100~101번만 표시
+            return (product.id >= 1 && product.id <= 7) || (product.id >= 100 && product.id <= 101);
+        })
+        .map(product => {
+            // storageStocks에서 해당 제품의 재고 정보 찾기
+            const storageStock = storageStocks.find(s => s.productId === product.id);
+            const count = storageStock?.count || 0;
+            
+            // 재고 상태 계산 (통 기준)
+            let status: "품절" | "위험" | "주의" | "안전";
+            if (count === 0) {
+                status = "품절";
+            } else if (count < 10) {
+                status = "위험";
+            } else if (count < 20) {
+                status = "주의";
+            } else {
+                status = "안전";
+            }
+            
+            return {
+                productId: product.id,
+                productName: product.name,
+                productTime: "재고관리" as const,
+                productDescription: product.description,
+                productCount: count,
+                updatedAddTime: storageStock?.lastRestockedAt || new Date().toISOString(),
+                manager: storageStock?.manager || "-",
+                productStatus: status,
+                storeName: "중앙창고",
+                one_capacity: product.one_capacity || 0
+            };
+        })
+        .sort((a, b) => a.productId - b.productId)
+    : stocks.filter(stock => stock.storeName === selectedStore)
+        .sort((a, b) => a.productId - b.productId);
 
     // 필터링된 로그 데이터 (ID 기준 오름차순)
     const filteredLogs = selectedLogStore === "전체 로그"
@@ -163,7 +204,17 @@ const StockPage = () => {
     const handleRestockClick = (stock: StockData) => {
         setSelectedStock({
             ...stock,
-            manager: "" // 담당자 명을 빈칸으로 초기화
+            manager: "" 
+        });
+        setRestockCount("");
+        setIsModalOpen(true);
+    };
+
+    const handleStorageRestockClick = (stock: StockData) => {
+        setSelectedStock({
+            ...stock,
+            manager: "",
+            storeName: "중앙창고",
         });
         setRestockCount("");
         setIsModalOpen(true);
@@ -193,37 +244,68 @@ const StockPage = () => {
 
         try {
             setIsSubmitting(true);
-            await stocksApi.restockStock({
-                productId: selectedStock.productId,
-                storeName: selectedStock.storeName,
-                updateCount: count,
-                updatedAt: new Date().toISOString(),
-                managerName: selectedStock.manager
-            });
 
-            // 성공 시 모달 닫고 데이터 새로고침
+            if (selectedStock.storeName === "중앙창고") {
+                const oneCapacity = selectedStock.one_capacity || 0;
+                
+                if (oneCapacity === 0) {
+                    alert("제품 정보를 불러올 수 없습니다. 다시 시도해주세요.");
+                    return;
+                }
+                
+                const convertedCount = count * oneCapacity; 
+                
+                const confirm = window.confirm(
+                    `${count}개(통)가 충전됩니다.\n계속하시겠습니까?`
+                );
+                
+                if (!confirm) {
+                    setIsSubmitting(false);
+                    return;
+                }
+                
+                await stocksApi.restockStorageStock({
+                    productId: selectedStock.productId,
+                    updateCount: convertedCount,  // 👈 변환된 횟수 전송
+                    updatedAt: new Date().toISOString(),
+                    managerName: selectedStock.manager
+                });
+                
+                const updatedStorageData = await stocksApi.getStorageStocks();
+                setStorageStocks(updatedStorageData);
+                
+            } else {
+                await stocksApi.restockStock({
+                    productId: selectedStock.productId,
+                    storeName: selectedStock.storeName,
+                    updateCount: count,
+                    updatedAt: new Date().toISOString(),
+                    managerName: selectedStock.manager
+                });
+
+                const [updatedStocksData, productData, logsData] = await Promise.all([
+                    stocksApi.getStocks(),
+                    stocksApi.getProducts(),
+                    stocksApi.getStockLogs()
+                ]);
+
+                const filteredStocks = updatedStocksData.filter(stock => stock.storeName !== '테스트용');
+                const stocksWithCapacity = filteredStocks.map(stock => {
+                    const product = productData.find(p => p.id === stock.productId);
+                    return {
+                        ...stock,
+                        one_capacity: product?.one_capacity || 0
+                    };
+                });
+                
+                setStocks(stocksWithCapacity);
+                setStockLogs(logsData);
+                setProductsData(productData);
+            }
+
             handleCloseModal();
-            
-            // 재고 데이터, 제품 데이터, 로그 데이터를 병렬로 가져오기
-            const [updatedStocksData, productsData, logsData] = await Promise.all([
-                stocksApi.getStocks(),
-                stocksApi.getProducts(),
-                stocksApi.getStockLogs()
-            ]);
-            
-            // '테스트용' 제외하고 one_capacity 값 추가
-            const filteredStocks = updatedStocksData.filter(stock => stock.storeName !== '테스트용');
-            const stocksWithCapacity = filteredStocks.map(stock => {
-                const product = productsData.find(p => p.id === stock.productId);
-                return {
-                    ...stock,
-                    one_capacity: product?.one_capacity || 0
-                };
-            });
-            
-            setStocks(stocksWithCapacity);
-            setStockLogs(logsData);
             alert("재고가 성공적으로 보충되었습니다.");
+            
         } catch (error) {
             console.error('Failed to restock:', error);
             alert("재고 보충에 실패했습니다. 다시 시도해주세요.");
@@ -300,11 +382,17 @@ const StockPage = () => {
                             <tr>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">제품명</th>
-                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">운동 시점</th>
+                                {selectedStore !== "중앙창고" && (
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                                    운동 시점
+                                </th> )}
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">마지막 충전 시간</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">담당자</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">재고 현황</th>
-                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">재고 상태</th>
+                                {selectedStore !== "중앙창고" && (
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                                    재고 상태
+                                </th> )}
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">충전 여부</th>
                             </tr>
                         </thead>
@@ -319,13 +407,17 @@ const StockPage = () => {
                                             {stock.productName.replace(/\\n/g, ' ')}
                                         </div>
                                     </td>
-                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
-                                        {stock.productTime !== "재고관리" && (
-                                            <span className={`inline-flex px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getWorkoutTimeColor(stock.productTime)}`}>
-                                                {stock.productTime}
-                                            </span>
-                                        )}
-                                    </td>
+                                    
+                                    {selectedStore !== "중앙창고" && (
+                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
+                                            {stock.productTime !== "재고관리" && (
+                                                <span className={`inline-flex px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getWorkoutTimeColor(stock.productTime)}`}>
+                                                    {stock.productTime}
+                                                </span>
+                                            )}
+                                        </td>
+                                    )}
+
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                         {formatUpdateTime(stock.updatedAddTime)}
                                     </td>
@@ -333,16 +425,27 @@ const StockPage = () => {
                                         {stock.manager}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
-                                        {formatStockCount(stock.productCount, stock.productTime)}
+                                        {selectedStore === "중앙창고" 
+                                            ? `${stock.productCount}개`
+                                            : formatStockCount(stock.productCount, stock.productTime)
+                                        }
                                     </td>
-                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
-                                        <span className={`inline-flex px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getStockStatusColor(stock.productStatus)}`}>
-                                            {stock.productStatus}
-                                        </span>
-                                    </td>
+                                    
+                                    {selectedStore !== "중앙창고" && (
+                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
+                                            <span className={`inline-flex px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getStockStatusColor(stock.productStatus)}`}>
+                                                {stock.productStatus}
+                                            </span>
+                                        </td>
+                                    )}
+
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
                                         <button 
-                                            onClick={() => handleRestockClick(stock)}
+                                            onClick={() => {
+                                                selectedStore === "중앙창고" 
+                                                    ? handleStorageRestockClick(stock)
+                                                    : handleRestockClick(stock)
+                                            }}
                                             className="inline-flex px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-semibold rounded-full bg-black text-white border-none hover:bg-gray-800 transition-colors"
                                         >
                                             충전
@@ -618,17 +721,31 @@ const StockPage = () => {
                                         type="number"
                                         value={restockCount}
                                         onChange={(e) => setRestockCount(e.target.value)}
-                                        placeholder="30"
-                                        step="1"
+                                        placeholder={selectedStock?.storeName === "중앙창고" ? "충전할 통 개수" : "충전할 횟수"}
                                         className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent text-sm sm:text-base"
                                     />
-                                    <button
+
+                                    {selectedStock?.storeName === "중앙창고" && selectedStock.one_capacity && selectedStock.one_capacity > 0 && (
+                                        <p className="text-xs text-gray-500 mt-3">
+                                            1통 = {selectedStock.one_capacity}회 
+                                            {restockCount && !isNaN(parseInt(restockCount)) && (
+                                                <span className="font-semibold text-mainRed ml-2">
+                                                    (총 {parseInt(restockCount) * selectedStock.one_capacity}회)
+                                                </span>
+                                            )}
+                                        </p>
+                                    )}
+                                    
+                                    {selectedStock?.storeName != "중앙창고" && (
+                                        <button
                                         type="button"
                                         onClick={() => setRestockCount(selectedStock.one_capacity?.toString() || "0")}
                                         className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-black rounded-md hover:bg-gray-50 transition-colors"
                                     >
                                         1통
                                     </button>
+                                    )}
+                                    
                                 </div>
                                 <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">숫자만 입력해주세요 (예: 30, -10)</p>
                             </div>

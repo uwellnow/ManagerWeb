@@ -58,3 +58,22 @@ export interface StockLogData {
 }
 
 export type StockLogResponse = StockLogData[];
+
+
+export interface StorageStockData {
+    id: number;
+    productId: number;
+    productName: string;
+    count: number;
+    lastRestockedAt: string;
+    manager: string;
+}
+
+export type StorageStockResponse = StorageStockData[];
+
+export interface StorageRestockRequest {
+    productId: number;
+    updateCount: number;
+    updatedAt: string;
+    managerName: string;
+}
