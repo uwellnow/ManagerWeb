@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 import type { StocksSummaryResponse } from '../types/DTO/stocksSummaryResponseDto';
-import type { StockResponse, RestockRequest, ProductData, StockLogResponse } from '../types/DTO/StockResponseDto';
+import type { StockResponse, RestockRequest, ProductData, StockLogResponse, StorageStockResponse, StorageRestockRequest } from '../types/DTO/StockResponseDto';
 
 export const stocksApi = {
     async getStocksSummary(): Promise<StocksSummaryResponse> {
@@ -21,5 +21,13 @@ export const stocksApi = {
 
     async restockStock(request: RestockRequest): Promise<void> {
         return apiClient.post<void>('/stocks/restock', request);
+    },
+
+    async getStorageStocks(): Promise<StorageStockResponse> {
+        return apiClient.get<StorageStockResponse>('/stocks/storage');
+    },
+
+    async restockStorageStock(request: StorageRestockRequest): Promise<void> {
+        return apiClient.post<void>('/stocks/storage/restock', request);
     }
 };
