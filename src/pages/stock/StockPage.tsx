@@ -266,13 +266,17 @@ const StockPage = () => {
                 
                 await stocksApi.restockStorageStock({
                     productId: selectedStock.productId,
-                    updateCount: convertedCount,  // 👈 변환된 횟수 전송
+                    updateCount: convertedCount,  
                     updatedAt: new Date().toISOString(),
                     managerName: selectedStock.manager
                 });
                 
-                const updatedStorageData = await stocksApi.getStorageStocks();
+                const [updatedStorageData, logsData] = await Promise.all([
+                    stocksApi.getStorageStocks(),
+                    stocksApi.getStockLogs()
+                ]);
                 setStorageStocks(updatedStorageData);
+                setStockLogs(logsData); 
                 
             } else {
                 await stocksApi.restockStock({
@@ -283,10 +287,11 @@ const StockPage = () => {
                     managerName: selectedStock.manager
                 });
 
-                const [updatedStocksData, productData, logsData] = await Promise.all([
+                const [updatedStocksData, productData, logsData, updatedStorageData] = await Promise.all([
                     stocksApi.getStocks(),
                     stocksApi.getProducts(),
-                    stocksApi.getStockLogs()
+                    stocksApi.getStockLogs(),
+                    stocksApi.getStorageStocks()  
                 ]);
 
                 const filteredStocks = updatedStocksData.filter(stock => stock.storeName !== '테스트용');
@@ -301,6 +306,7 @@ const StockPage = () => {
                 setStocks(stocksWithCapacity);
                 setStockLogs(logsData);
                 setProductsData(productData);
+                setStorageStocks(updatedStorageData);  
             }
 
             handleCloseModal();
