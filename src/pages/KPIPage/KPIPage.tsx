@@ -167,8 +167,12 @@ const KPIPage = () => {
         const firstDate = new Date(user.first_visit);
         const dayStatus: Record<string, string> = {};
 
+        // 선택한 기간의 일수 계산 (제한 없음)
+        const startDate = new Date(dateRange.startDate);
+        const endDate = new Date(dateRange.endDate);
+        const maxDay = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
-        for (let day = 0; day <= 70; day++) {
+        for (let day = 0; day <= maxDay; day++) {
             const target = new Date(firstDate);
             target.setDate(firstDate.getDate() + day);
             const dateStr = target.toISOString().split("T")[0];
@@ -178,11 +182,15 @@ const KPIPage = () => {
         }
 
         const totalVisits = user.visit_dates.length;
-        const retentionDays = Array.from({ length: 3 }, (_, i) => (i + 1) * 7);
+        // 선택한 기간 내 7의 배수 모두 계산 (제한 없음)
+        const maxWeeks = Math.floor(maxDay / 7);
+        const retentionDays = Array.from({ length: maxWeeks }, (_, i) => (i + 1) * 7);
         const retainedCount = retentionDays.filter(
             (d) => dayStatus[`Day${d}`] === "이용"
         ).length;
-        const retentionRate = (retainedCount / retentionDays.length).toFixed(2);
+        const retentionRate = retentionDays.length > 0 
+            ? (retainedCount / retentionDays.length).toFixed(2)
+            : "0.00";
 
         return {
             사용자: user.user_name,
@@ -195,14 +203,20 @@ const KPIPage = () => {
     const generateRetentionTable = (orders: OrderData[]) => {
         const users = groupByUserForRetention(orders);
         return users.map((u) => makeRetentionRow(u));
-
     };
     // -----------------------------------------------------
+
+    // 선택한 기간의 일수 계산
+    const getMaxDaysFromDateRange = () => {
+        const startDate = new Date(dateRange.startDate);
+        const endDate = new Date(dateRange.endDate);
+        return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    };
 
     const handleGenerateKPI = () => {
         if (selectedKPI === "리텐션") {
             const userTable = generateRetentionTable(filteredOrders);
-            const cohort = generateCohortRetentionSummary(filteredOrders);
+            const cohort = generateCohortRetentionSummary(filteredOrders, dateRange);
 
             setResultData(userTable);
             setCohortSummary(cohort);
@@ -403,7 +417,7 @@ const KPIPage = () => {
                                 <thead className="bg-gray-100">
                                 <tr>
                                     <th className="border px-2 py-1">사용자</th>
-                                    {Array.from({ length: 71 }, (_, i) => (
+                                    {Array.from({ length: getMaxDaysFromDateRange() + 1 }, (_, i) => (
                                         <th key={i} className="border px-2 py-1">{`Day${i}`}</th>
                                     ))}
                                     <th className="border px-2 py-1">이용횟수</th>
@@ -414,7 +428,7 @@ const KPIPage = () => {
                                 {resultData.map((row, idx) => (
                                     <tr key={idx}>
                                         <td className="border px-2 py-1">{row["사용자"]}</td>
-                                        {Array.from({ length: 71 }, (_, i) => (
+                                        {Array.from({ length: getMaxDaysFromDateRange() + 1 }, (_, i) => (
                                             <td
                                                 key={i}
                                                 className={`border px-2 py-1 ${

@@ -29,12 +29,20 @@ export const groupByUserForRetention = (orders: OrderData[]) => {
 /* -------------------------------------------
    개인 단위 리텐션 행 생성
 ------------------------------------------- */
-export const makeRetentionRow = (user: any) => {
+export const makeRetentionRow = (user: any, dateRange?: { startDate: string; endDate: string }) => {
     const firstDate = new Date(user.first_visit);
     const dayStatus: Record<string, string> = {};
 
-    // Day0 ~ Day70 이용 여부 계산
-    for (let day = 0; day <= 70; day++) {
+    // 선택한 기간의 일수 계산 (제한 없음)
+    let maxDay = 365; // 기본값 (1년)
+    if (dateRange) {
+        const startDate = new Date(dateRange.startDate);
+        const endDate = new Date(dateRange.endDate);
+        maxDay = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // Day0 ~ maxDay 이용 여부 계산
+    for (let day = 0; day <= maxDay; day++) {
         const target = new Date(firstDate);
         target.setDate(firstDate.getDate() + day);
         const dateStr = target.toISOString().split("T")[0];
@@ -43,12 +51,15 @@ export const makeRetentionRow = (user: any) => {
             : "이용하지 않음";
     }
 
-    // 7일 단위 리텐션 계산
-    const retentionDays = Array.from({ length: 10 }, (_, i) => (i + 1) * 7); // [7,14,21]
+    // 선택한 기간 내 7의 배수 모두 계산 (제한 없음)
+    const maxWeeks = Math.floor(maxDay / 7);
+    const retentionDays = Array.from({ length: maxWeeks }, (_, i) => (i + 1) * 7);
     const retainedCount = retentionDays.filter(
         (d) => dayStatus[`Day${d}`] === "이용"
     ).length;
-    const retentionRate = (retainedCount / retentionDays.length).toFixed(2);
+    const retentionRate = retentionDays.length > 0 
+        ? (retainedCount / retentionDays.length).toFixed(2)
+        : "0.00";
 
     return {
         사용자: user.user_name,
@@ -61,17 +72,27 @@ export const makeRetentionRow = (user: any) => {
 /* -------------------------------------------
    개인 리텐션 테이블 생성
 ------------------------------------------- */
-export const generateRetentionTable = (orders: OrderData[]) => {
+export const generateRetentionTable = (orders: OrderData[], dateRange?: { startDate: string; endDate: string }) => {
     const users = groupByUserForRetention(orders);
-    return users.map((u) => makeRetentionRow(u));
+    return users.map((u) => makeRetentionRow(u, dateRange));
 };
 
 /* -------------------------------------------
    전체 리텐션 요약 계산
 ------------------------------------------- */
-export const generateCohortRetentionSummary = (orders: OrderData[]) => {
+export const generateCohortRetentionSummary = (orders: OrderData[], dateRange?: { startDate: string; endDate: string }) => {
     const users = groupByUserForRetention(orders);
-    const retentionDays = Array.from({ length: 10 }, (_, i) => (i + 1) * 7); // [7,14,21]
+    
+    // 선택한 기간의 일수 계산 (제한 없음)
+    let maxDay = 365; // 기본값 (1년)
+    if (dateRange) {
+        const startDate = new Date(dateRange.startDate);
+        const endDate = new Date(dateRange.endDate);
+        maxDay = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    
+    const maxWeeks = Math.floor(maxDay / 7);
+    const retentionDays = Array.from({ length: maxWeeks }, (_, i) => (i + 1) * 7);
     const totalUsers = users.length;
 
     const cohortSummary = retentionDays.map((day) => {
@@ -101,8 +122,8 @@ export const exportRetentionKPIToExcel = (
     dateRange: { startDate: string; endDate: string },
     selectedUser?: string
 ) => {
-    const userRetention = generateRetentionTable(orders);
-    const cohortSummary = generateCohortRetentionSummary(orders);
+    const userRetention = generateRetentionTable(orders, dateRange);
+    const cohortSummary = generateCohortRetentionSummary(orders, dateRange);
 
     // 개인 리텐션 CSV 변환
     const userRetentionSheet = XLSX.utils.json_to_sheet(userRetention);
