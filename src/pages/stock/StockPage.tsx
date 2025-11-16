@@ -427,7 +427,7 @@ const StockPage = () => {
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                         {formatUpdateTime(stock.updatedAddTime)}
                                     </td>
-                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
+                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:tgext-sm lg:text-base text-gray-900">
                                         {stock.manager}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">

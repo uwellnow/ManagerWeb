@@ -61,6 +61,8 @@ const ErrorLogPage = () => {
                 return '인트로피트니스';
             case 20258575:
                 return '멋짐';
+            case 20252323:
+                return '유어스핏';
             default:
                 return `기기 ${machineId}`;
         }
