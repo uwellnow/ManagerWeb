@@ -448,12 +448,6 @@ const CustomerPage = () => {
             return;
         }
 
-        // 바코드 번호 7자리 검증
-        if (registerForm.barcode.length !== 7) {
-            alert("바코드 번호는 7자리여야 합니다.");
-            return;
-        }
-
         try {
             setIsRegisterSubmitting(true);
             
@@ -1074,8 +1068,7 @@ const CustomerPage = () => {
                                         type="text"
                                         value={registerForm.barcode}
                                         onChange={(e) => setRegisterForm(prev => ({ ...prev, barcode: e.target.value }))}
-                                        placeholder="7자리를 입력하세요"
-                                        maxLength={7}
+                                        placeholder="바코드 번호를 입력하세요"
                                         className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
                                     />
                                 </div>
