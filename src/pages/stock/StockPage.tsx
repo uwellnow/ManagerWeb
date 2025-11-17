@@ -84,8 +84,8 @@ const StockPage = () => {
     const filteredStocks = selectedStore === "중앙창고"
     ? productsData
         .filter(product => {
-            // ID 1~7번 또는 100~101번만 표시
-            return (product.id >= 1 && product.id <= 7) || (product.id >= 100 && product.id <= 101);
+            // ID 1~8번 또는 100~101번만 표시
+            return (product.id >= 1 && product.id <= 8) || (product.id >= 100 && product.id <= 101);
         })
         .map(product => {
             // storageStocks에서 해당 제품의 재고 정보 찾기
