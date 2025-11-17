@@ -409,7 +409,7 @@ const StockPage = () => {
                                         {stock.productId}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
-                                        <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none truncate">
+                                        <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none overflow-x-auto whitespace-nowrap">
                                             {stock.productName.replace(/\\n/g, ' ')}
                                         </div>
                                     </td>
@@ -579,7 +579,7 @@ const StockPage = () => {
                                             {log.id}
                                         </td>
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
-                                            <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none truncate">
+                                            <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none overflow-x-auto whitespace-nowrap">
                                                 {log.product_name?.replace("\\n", " ") || `제품 ID: ${log.product_id}`}
                                             </div>
                                         </td>
