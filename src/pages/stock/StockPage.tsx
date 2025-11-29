@@ -84,8 +84,8 @@ const StockPage = () => {
     const filteredStocks = selectedStore === "중앙창고"
     ? productsData
         .filter(product => {
-            // ID 1~8번 또는 100~101번만 표시
-            return (product.id >= 1 && product.id <= 8) || (product.id >= 100 && product.id <= 101);
+            // ID 1~9번 또는 100~101번만 표시
+            return (product.id >= 1 && product.id <= 9) || (product.id >= 100 && product.id <= 101);
         })
         .map(product => {
             // storageStocks에서 해당 제품의 재고 정보 찾기
@@ -252,8 +252,7 @@ const StockPage = () => {
                     alert("제품 정보를 불러올 수 없습니다. 다시 시도해주세요.");
                     return;
                 }
-                
-                const convertedCount = count * oneCapacity; 
+
                 
                 const confirm = window.confirm(
                     `${count}개(통)가 충전됩니다.\n계속하시겠습니까?`
@@ -266,7 +265,7 @@ const StockPage = () => {
                 
                 await stocksApi.restockStorageStock({
                     productId: selectedStock.productId,
-                    updateCount: convertedCount,  
+                    updateCount: count,
                     updatedAt: new Date().toISOString(),
                     managerName: selectedStock.manager
                 });
@@ -432,7 +431,7 @@ const StockPage = () => {
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                         {selectedStore === "중앙창고" 
-                                            ? `${stock.productCount}개`
+                                            ? `${stock.productCount}통`
                                             : formatStockCount(stock.productCount, stock.productTime)
                                         }
                                     </td>
