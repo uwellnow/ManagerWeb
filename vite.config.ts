@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://manage-uwellnow.com/',
+        target: 'https://manage-uwellnow.com/', //'http://localhost:8000/', 
         changeOrigin: true,
         secure: false,
       }

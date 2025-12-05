@@ -23,7 +23,7 @@ export interface StockData {
     manager: string;
     productStatus: "품절" | "위험" | "주의" | "안전";
     storeName: string;
-    one_capacity?: number; // 1통당 섭취가능 횟수
+    one_capacity?: number; 
 }
 
 export type StockResponse = StockData[];
@@ -34,6 +34,8 @@ export interface RestockRequest {
     updateCount: number;
     updatedAt: string;
     managerName: string;
+    isCountUnit?: boolean; // true면 횟수 단위 (중앙창고 차감 안됨), false면 통 단위 (중앙창고 차감)
+    reason?: string; 
 }
 
 export interface StockLogData {
@@ -76,4 +78,5 @@ export interface StorageRestockRequest {
     updateCount: number;
     updatedAt: string;
     managerName: string;
+    reason?: string;
 }

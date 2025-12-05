@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { stocksApi } from "../../api/stocks";
-import type { StockResponse, StockData, StockLogResponse, StorageStockResponse, ProductData } from "../../types/DTO/StockResponseDto";
+import type { StockResponse, StockData, StockLogResponse, StockLogData, StorageStockResponse, ProductData } from "../../types/DTO/StockResponseDto";
 
 const StockPage = () => {
     const { isAuthenticated } = useAuth();
@@ -14,13 +14,17 @@ const StockPage = () => {
     const [isError, setIsError] = useState(false);
     const [selectedStore, setSelectedStore] = useState<string>("중앙창고");
     const [storageStocks, setStorageStocks] = useState<StorageStockResponse>([]);
-    const [selectedLogStore, setSelectedLogStore] = useState<string>("전체 로그");
+    const [selectedLogStore, setSelectedLogStore] = useState<string>("중앙창고");
     const [currentPage, setCurrentPage] = useState(1);
     const [currentLogPage, setCurrentLogPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedStock, setSelectedStock] = useState<StockData | null>(null);
     const [restockCount, setRestockCount] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [useCountUnit, setUseCountUnit] = useState(false); // 횟수 단위 체크박스 상태
+    const [reason, setReason] = useState(""); // 재고 보충 이유 (비고)
+    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+    const [selectedLog, setSelectedLog] = useState<StockLogData | null>(null);
     const itemsPerPage = 10;
     const logsPerPage = 10;
 
@@ -74,11 +78,13 @@ const StockPage = () => {
         fetchData();
     }, [isAuthenticated]);
 
-    // 매장 목록 추출
-    const stores = ["중앙창고", ...Array.from(new Set(stocks.map(stock => stock.storeName)))];
+    // 매장 목록 추출 (중앙창고 먼저)
+    const storeSet = Array.from(new Set(stocks.map(stock => stock.storeName)));
+    const stores = ["중앙창고", ...storeSet];
     
-    // 로그 매장 목록 추출
-    const logStores = ["전체 로그", ...Array.from(new Set(stockLogs.map(log => log.store_name)))];
+    // 로그 매장 목록 추출 (중앙창고 먼저)
+    const logStoreSet = Array.from(new Set(stockLogs.map(log => log.store_name))).filter(name => name !== "중앙창고");
+    const logStores = ["중앙창고", ...logStoreSet];
 
     // 필터링된 재고 데이터 (중앙창고 포함)
     const filteredStocks = selectedStore === "중앙창고"
@@ -121,10 +127,10 @@ const StockPage = () => {
     : stocks.filter(stock => stock.storeName === selectedStore)
         .sort((a, b) => a.productId - b.productId);
 
-    // 필터링된 로그 데이터 (ID 기준 오름차순)
-    const filteredLogs = selectedLogStore === "전체 로그"
-        ? stockLogs.sort((a, b) => b.id - a.id)
-        : stockLogs.filter(log => log.store_name === selectedLogStore).sort((a, b) => a.id - b.id);
+    // 필터링된 로그 데이터 (변경량이 양수인 경우만)
+    const filteredLogs = stockLogs
+        .filter(log => log.store_name === selectedLogStore && log.change_amount > 0)
+        .sort((a, b) => b.id - a.id);
 
     // 재고 페이지네이션
     const totalPages = Math.ceil(filteredStocks.length / itemsPerPage);
@@ -225,6 +231,20 @@ const StockPage = () => {
         setIsModalOpen(false);
         setSelectedStock(null);
         setRestockCount("");
+        setUseCountUnit(false); // 체크박스 상태 초기화
+        setReason(""); // 비고 초기화
+    };
+
+    // 로그 클릭 핸들러
+    const handleLogClick = (log: StockLogData) => {
+        setSelectedLog(log);
+        setIsLogModalOpen(true);
+    };
+
+    // 로그 모달 닫기
+    const handleCloseLogModal = () => {
+        setIsLogModalOpen(false);
+        setSelectedLog(null);
     };
 
     // 재고 보충 제출
@@ -267,7 +287,8 @@ const StockPage = () => {
                     productId: selectedStock.productId,
                     updateCount: count,
                     updatedAt: new Date().toISOString(),
-                    managerName: selectedStock.manager
+                    managerName: selectedStock.manager,
+                    reason: reason.trim() || undefined // 비고가 있으면 전송
                 });
                 
                 const [updatedStorageData, logsData] = await Promise.all([
@@ -278,12 +299,44 @@ const StockPage = () => {
                 setStockLogs(logsData); 
                 
             } else {
+                const oneCapacity = selectedStock.one_capacity || 0;
+                
+                // 확인 메시지 표시 (통 단위인지 횟수 단위인지에 따라)
+                if (!useCountUnit && oneCapacity > 0) {
+                    // 통 단위일 때 확인 메시지 (실제 증가할 횟수 표시)
+                    const totalCount = count * oneCapacity;
+                    const confirmMessage = count > 0
+                        ? `${count}통 (${totalCount}회)이 충전됩니다.\n중앙창고에서 ${count}통이 차감됩니다.\n계속하시겠습니까?`
+                        : `${Math.abs(count)}통 (${Math.abs(totalCount)}회)이 차감됩니다.\n중앙창고에 ${Math.abs(count)}통이 반환됩니다.\n계속하시겠습니까?`;
+                    
+                    const confirm = window.confirm(confirmMessage);
+                    if (!confirm) {
+                        setIsSubmitting(false);
+                        return;
+                    }
+                } else if (useCountUnit) {
+                    // 횟수 단위일 때 확인 메시지
+                    const confirmMessage = count > 0
+                        ? `${count}회가 충전됩니다.\n(중앙창고에 반영되지 않습니다)\n계속하시겠습니까?`
+                        : `${Math.abs(count)}회가 차감됩니다.\n(중앙창고에 반영되지 않습니다)\n계속하시겠습니까?`;
+                    
+                    const confirm = window.confirm(confirmMessage);
+                    if (!confirm) {
+                        setIsSubmitting(false);
+                        return;
+                    }
+                }
+                
+                // 백엔드에 입력값 그대로 전송 (통 단위면 통 개수, 횟수 단위면 횟수)
+                // 백엔드에서 isCountUnit에 따라 one_capacity 곱셈 처리
                 await stocksApi.restockStock({
                     productId: selectedStock.productId,
                     storeName: selectedStock.storeName,
-                    updateCount: count,
+                    updateCount: count, // 입력값 그대로 전송
                     updatedAt: new Date().toISOString(),
-                    managerName: selectedStock.manager
+                    managerName: selectedStock.manager,
+                    isCountUnit: useCountUnit, // 횟수 단위 여부 전달
+                    reason: reason.trim() || undefined // 비고가 있으면 전송
                 });
 
                 const [updatedStocksData, productData, logsData, updatedStorageData] = await Promise.all([
@@ -311,9 +364,15 @@ const StockPage = () => {
             handleCloseModal();
             alert("재고가 성공적으로 보충되었습니다.");
             
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to restock:', error);
-            alert("재고 보충에 실패했습니다. 다시 시도해주세요.");
+            
+            // 400 에러일 경우 중앙창고 재고 확인 메시지
+            if (error?.response?.status === 400) {
+                alert("중앙창고의 재고를 확인해 주세요.");
+            } else {
+                alert("재고 보충에 실패했습니다. 다시 시도해주세요.");
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -562,9 +621,7 @@ const StockPage = () => {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                     <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">제품명</th>
-                                    <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">운동 시점</th>
                                     <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">마지막 충전 시간</th>
                                     <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">담당자</th>
                                     <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">충전 전 재고</th>
@@ -573,21 +630,15 @@ const StockPage = () => {
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {currentLogs.map((log, index) => (
-                                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900 font-medium">
-                                            {log.id}
-                                        </td>
+                                    <tr 
+                                        key={index} 
+                                        onClick={() => handleLogClick(log)}
+                                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                                    >
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
                                             <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none overflow-x-auto whitespace-nowrap">
                                                 {log.product_name?.replace("\\n", " ") || `제품 ID: ${log.product_id}`}
                                             </div>
-                                        </td>
-                                        <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
-                                            {log.product_time && (
-                                                <span className={`inline-flex px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getWorkoutTimeColor(log.product_time)}`}>
-                                                    {log.product_time}
-                                                </span>
-                                            )}
                                         </td>
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                             {formatUpdateTime(log.logged_at)}
@@ -596,10 +647,24 @@ const StockPage = () => {
                                             {log.manager}
                                         </td>
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
-                                            {log.previous_count}회
+                                            {log.store_name === "중앙창고" 
+                                                ? (() => {
+                                                    const product = productsData.find(p => p.id === log.product_id);
+                                                    const oneCapacity = product?.one_capacity || 1;
+                                                    return `${Math.floor(log.previous_count / oneCapacity)}통`;
+                                                })()
+                                                : `${log.previous_count}회`
+                                            }
                                         </td>
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
-                                            {log.new_count}회
+                                            {log.store_name === "중앙창고" 
+                                                ? (() => {
+                                                    const product = productsData.find(p => p.id === log.product_id);
+                                                    const oneCapacity = product?.one_capacity || 1;
+                                                    return `${Math.floor(log.new_count / oneCapacity)}통`;
+                                                })()
+                                                : `${log.new_count}회`
+                                            }
                                         </td>
                                     </tr>
                                 ))}
@@ -720,18 +785,69 @@ const StockPage = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">보충하신 양을 입력해주세요</label>
+                                <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">
+                                    비고 <span className="text-gray-400 text-xs">(선택사항)</span>
+                                </label>
+                                <textarea
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    placeholder="재고 보충 이유를 입력해주세요 (선택)"
+                                    rows={3}
+                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent resize-none"
+                                />
+                            </div>
+
+                            {/* 매장 재고만 횟수 단위 체크박스 표시 */}
+                            {selectedStock?.storeName !== "중앙창고" && (
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="useCountUnit"
+                                        checked={useCountUnit}
+                                        onChange={(e) => setUseCountUnit(e.target.checked)}
+                                        className="w-4 h-4 text-mainRed border-gray-300 rounded focus:ring-mainRed"
+                                    />
+                                    <label htmlFor="useCountUnit" className="text-sm sm:text-base font-medium text-gray-700 cursor-pointer">
+                                        횟수 단위로 충전 (중앙창고 재고 차감 안됨)
+                                    </label>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">
+                                    보충하신 양을 입력해주세요
+                                </label>
                                 <div className="relative">
                                     <input
                                         type="number"
                                         value={restockCount}
                                         onChange={(e) => setRestockCount(e.target.value)}
-                                        placeholder={selectedStock?.storeName === "중앙창고" ? "충전할 통 개수" : "충전할 횟수"}
-                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent text-sm sm:text-base"
+                                        placeholder={
+                                            selectedStock?.storeName === "중앙창고" 
+                                                ? "충전할 통 개수" 
+                                                : useCountUnit 
+                                                    ? "충전할 횟수"
+                                                    : "충전할 통 개수"
+                                        }
+                                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent text-sm sm:text-base ${
+                                            selectedStock?.storeName !== "중앙창고" && !useCountUnit ? "pr-16 sm:pr-20" : ""
+                                        }`}
                                     />
 
+                                    {/* 매장 재고 & 통 단위일 때만 1통 버튼 표시 (input 필드 안) */}
+                                    {selectedStock?.storeName !== "중앙창고" && !useCountUnit && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setRestockCount("1")}
+                                            className="absolute right-2 top-1/3 transform -translate-y-1/2 px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-black rounded-md hover:bg-gray-50 transition-colors z-10"
+                                        >
+                                            1통
+                                        </button>
+                                    )}
+
+                                    {/* 중앙창고 설명 */}
                                     {selectedStock?.storeName === "중앙창고" && selectedStock.one_capacity && selectedStock.one_capacity > 0 && (
-                                        <p className="text-xs text-gray-500 mt-3">
+                                        <p className="text-xs text-gray-500 mt-2">
                                             1통 = {selectedStock.one_capacity}회 
                                             {restockCount && !isNaN(parseInt(restockCount)) && (
                                                 <span className="font-semibold text-mainRed ml-2">
@@ -741,18 +857,25 @@ const StockPage = () => {
                                         </p>
                                     )}
                                     
-                                    {selectedStock?.storeName != "중앙창고" && (
-                                        <button
-                                        type="button"
-                                        onClick={() => setRestockCount(selectedStock.one_capacity?.toString() || "0")}
-                                        className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-black rounded-md hover:bg-gray-50 transition-colors"
-                                    >
-                                        1통
-                                    </button>
+                                    {/* 매장 재고 & 통 단위일 때만 변환 정보 표시 */}
+                                    {selectedStock?.storeName !== "중앙창고" && !useCountUnit && selectedStock.one_capacity && selectedStock.one_capacity > 0 && (
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            1통 = {selectedStock.one_capacity}회 
+                                            {restockCount && !isNaN(parseInt(restockCount)) && (
+                                                <span className="font-semibold text-mainRed ml-2">
+                                                    (총 {parseInt(restockCount) * selectedStock.one_capacity}회 / 중앙창고 {parseInt(restockCount)}통 차감)
+                                                </span>
+                                            )}
+                                        </p>
                                     )}
-                                    
                                 </div>
-                                <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">숫자만 입력해주세요 (예: 30, -10)</p>
+                                <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">
+                                    {selectedStock?.storeName === "중앙창고" 
+                                        ? "숫자만 입력해주세요 (예: 30, -10)" 
+                                        : useCountUnit 
+                                            ? "횟수 단위로 입력해주세요 (예: 30, -10)" 
+                                            : "통 단위로 입력해주세요 (예: 1, 2, -1)"}
+                                </p>
                             </div>
                         </div>
 
@@ -763,6 +886,143 @@ const StockPage = () => {
                                 className="w-full bg-red-600 text-white py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base lg:text-lg font-medium"
                             >
                                 {isSubmitting ? '저장 중...' : '저장'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 재고 로그 상세 모달 */}
+            {isLogModalOpen && selectedLog && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md lg:max-w-lg max-h-[90vh] flex flex-col">
+                        <div className="flex justify-between items-center mb-4 sm:mb-6">
+                            <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">재고 충전 상세</h3>
+                            <button
+                                onClick={handleCloseLogModal}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="overflow-y-auto flex-1 space-y-3 sm:space-y-4 scrollbar-hide">
+                            <div>
+                                <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">충전 매장</label>
+                                <input
+                                    type="text"
+                                    value={selectedLog.store_name}
+                                    disabled
+                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base font-semibold"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">충전 일시</label>
+                                <input
+                                    type="text"
+                                    value={formatUpdateTime(selectedLog.logged_at)}
+                                    disabled
+                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">담당자</label>
+                                <input
+                                    type="text"
+                                    value={selectedLog.manager}
+                                    disabled
+                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">제품명</label>
+                                <input
+                                    type="text"
+                                    value={selectedLog.product_name?.replace("\\n", " ") || `제품 ID: ${selectedLog.product_id}`}
+                                    disabled
+                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">충전 전 재고</label>
+                                    <input
+                                        type="text"
+                                        value={
+                                            selectedLog.store_name === "중앙창고"
+                                                ? (() => {
+                                                    const product = productsData.find(p => p.id === selectedLog.product_id);
+                                                    const oneCapacity = product?.one_capacity || 1;
+                                                    return `${Math.floor(selectedLog.previous_count / oneCapacity)}통`;
+                                                })()
+                                                : `${selectedLog.previous_count}회`
+                                        }
+                                        disabled
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">충전 후 재고</label>
+                                    <input
+                                        type="text"
+                                        value={
+                                            selectedLog.store_name === "중앙창고"
+                                                ? (() => {
+                                                    const product = productsData.find(p => p.id === selectedLog.product_id);
+                                                    const oneCapacity = product?.one_capacity || 1;
+                                                    return `${Math.floor(selectedLog.new_count / oneCapacity)}통`;
+                                                })()
+                                                : `${selectedLog.new_count}회`
+                                        }
+                                        disabled
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">변경량</label>
+                                <input
+                                    type="text"
+                                    value={
+                                        selectedLog.store_name === "중앙창고"
+                                            ? (() => {
+                                                const product = productsData.find(p => p.id === selectedLog.product_id);
+                                                const oneCapacity = product?.one_capacity || 1;
+                                                return `+${Math.floor(selectedLog.change_amount / oneCapacity)}통`;
+                                            })()
+                                            : `+${selectedLog.change_amount}회`
+                                    }
+                                    disabled
+                                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-sm sm:text-base font-semibold text-green-600"
+                                />
+                            </div>
+
+                            {selectedLog.reason && (
+                                <div>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">비고</label>
+                                    <textarea
+                                        value={selectedLog.reason}
+                                        disabled
+                                        rows={3}
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base resize-none"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-4 sm:mt-6">
+                            <button
+                                onClick={handleCloseLogModal}
+                                className="w-full bg-gray-600 text-white py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl hover:bg-gray-700 transition-colors text-sm sm:text-base lg:text-lg font-medium"
+                            >
+                                닫기
                             </button>
                         </div>
                     </div>
