@@ -15,7 +15,6 @@ const StockPage = () => {
     const [selectedStore, setSelectedStore] = useState<string>("중앙창고");
     const [storageStocks, setStorageStocks] = useState<StorageStockResponse>([]);
     const [selectedLogStore, setSelectedLogStore] = useState<string>("중앙창고");
-    const [currentPage, setCurrentPage] = useState(1);
     const [currentLogPage, setCurrentLogPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedStock, setSelectedStock] = useState<StockData | null>(null);
@@ -25,7 +24,6 @@ const StockPage = () => {
     const [reason, setReason] = useState(""); // 재고 보충 이유 (비고)
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     const [selectedLog, setSelectedLog] = useState<StockLogData | null>(null);
-    const itemsPerPage = 10;
     const logsPerPage = 10;
 
     useEffect(() => {
@@ -90,8 +88,8 @@ const StockPage = () => {
     const filteredStocks = selectedStore === "중앙창고"
     ? productsData
         .filter(product => {
-            // ID 1~9번 또는 100~101번만 표시
-            return (product.id >= 1 && product.id <= 9) || (product.id >= 100 && product.id <= 101);
+            // ID 1~20번 또는 100~101번만 표시
+            return (product.id >= 1 && product.id <= 20) || (product.id >= 100 && product.id <= 101);
         })
         .map(product => {
             // storageStocks에서 해당 제품의 재고 정보 찾기
@@ -132,17 +130,27 @@ const StockPage = () => {
         .filter(log => log.store_name === selectedLogStore && log.change_amount > 0)
         .sort((a, b) => b.id - a.id);
 
-    // 재고 페이지네이션
-    const totalPages = Math.ceil(filteredStocks.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const currentStocks = filteredStocks.slice(startIndex, endIndex);
+    // 재고 페이지네이션 제거 - 모든 항목 표시
+    const currentStocks = filteredStocks;
 
     // 로그 페이지네이션
     const totalLogPages = Math.ceil(filteredLogs.length / logsPerPage);
     const startLogIndex = (currentLogPage - 1) * logsPerPage;
     const endLogIndex = startLogIndex + logsPerPage;
     const currentLogs = filteredLogs.slice(startLogIndex, endLogIndex);
+
+    // 제품 이름 포맷팅 함수 (제품 ID에 따라 구분자 추가)
+    const formatProductName = (productId: number, productName: string): string => {
+        let formattedName = productName.replace(/\\n/g, ' ');
+        
+        if (productId === 8) {
+            formattedName += ' (유어스핏)';
+        } else if (productId === 11) {
+            formattedName += ' (바이젝)';
+        }
+        
+        return formattedName;
+    };
 
     // 날짜 포맷팅 함수
     const formatUpdateTime = (updateTime: string) => {
@@ -419,7 +427,6 @@ const StockPage = () => {
                             key={store}
                             onClick={() => {
                                 setSelectedStore(store);
-                                setCurrentPage(1);
                             }}
                             className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
                                 selectedStore === store
@@ -468,7 +475,7 @@ const StockPage = () => {
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
                                         <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none overflow-x-auto whitespace-nowrap">
-                                            {stock.productName.replace(/\\n/g, ' ')}
+                                            {formatProductName(stock.productId, stock.productName)}
                                         </div>
                                     </td>
                                     
@@ -522,68 +529,6 @@ const StockPage = () => {
                 </div>
             </div>
 
-            {/* 페이지네이션 */}
-            {totalPages > 1 && (
-                <div className="flex justify-center mt-4 sm:mt-6 lg:mt-8">
-                    <nav className="flex items-center space-x-1 sm:space-x-2">
-                        <button
-                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                            disabled={currentPage === 1}
-                            className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            &lt;
-                        </button>
-                        
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            let pageNum;
-                            if (totalPages <= 5) {
-                                pageNum = i + 1;
-                            } else if (currentPage <= 3) {
-                                pageNum = i + 1;
-                            } else if (currentPage >= totalPages - 2) {
-                                pageNum = totalPages - 4 + i;
-                            } else {
-                                pageNum = currentPage - 2 + i;
-                            }
-                            
-                            return (
-                                <button
-                                    key={pageNum}
-                                    onClick={() => setCurrentPage(pageNum)}
-                                    className={`px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium rounded-lg transition-colors ${
-                                        currentPage === pageNum
-                                            ? 'bg-mainRed text-white shadow-sm'
-                                            : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    {pageNum}
-                                </button>
-                            );
-                        })}
-                        
-                        {totalPages > 5 && currentPage < totalPages - 2 && (
-                            <span className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base text-gray-500">...</span>
-                        )}
-                        
-                        {totalPages > 5 && currentPage < totalPages - 2 && (
-                            <button
-                                onClick={() => setCurrentPage(totalPages)}
-                                className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                                {totalPages}
-                            </button>
-                        )}
-                        
-                        <button
-                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                            disabled={currentPage === totalPages}
-                            className="px-2 sm:px-3 lg:px-4 py-2 text-xs sm:text-sm lg:text-base font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            &gt;
-                        </button>
-                    </nav>
-                </div>
-            )}
 
             {/* 재고 로그 섹션 */}
             <div className="mt-8 sm:mt-10 lg:mt-12">
@@ -637,7 +582,7 @@ const StockPage = () => {
                                     >
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4">
                                             <div className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 max-w-32 sm:max-w-48 lg:max-w-none overflow-x-auto whitespace-nowrap">
-                                                {log.product_name?.replace("\\n", " ") || `제품 ID: ${log.product_id}`}
+                                                {log.product_name ? formatProductName(log.product_id, log.product_name) : `제품 ID: ${log.product_id}`}
                                             </div>
                                         </td>
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
@@ -778,7 +723,7 @@ const StockPage = () => {
                                 <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">제품명</label>
                                 <input
                                     type="text"
-                                    value={selectedStock.productName.replace(/\\n/g, ' ')}
+                                    value={formatProductName(selectedStock.productId, selectedStock.productName)}
                                     disabled
                                     className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base"
                                 />
@@ -943,7 +888,7 @@ const StockPage = () => {
                                 <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">제품명</label>
                                 <input
                                     type="text"
-                                    value={selectedLog.product_name?.replace("\\n", " ") || `제품 ID: ${selectedLog.product_id}`}
+                                    value={selectedLog.product_name ? formatProductName(selectedLog.product_id, selectedLog.product_name) : `제품 ID: ${selectedLog.product_id}`}
                                     disabled
                                     className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base"
                                 />
