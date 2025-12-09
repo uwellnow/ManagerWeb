@@ -216,11 +216,15 @@ const KPIPage = () => {
     const handleGenerateKPI = () => {
         if (selectedKPI === "리텐션") {
             const userTable = generateRetentionTable(filteredOrders);
-            const cohort = generateCohortRetentionSummary(filteredOrders, dateRange);
+            const cohortResult = generateCohortRetentionSummary(filteredOrders, dateRange);
 
             setResultData(userTable);
-            setCohortSummary(cohort);
-            setSummaryData(null);
+            setCohortSummary(cohortResult.summary);
+            // 평균 리텐션율을 summaryData에 저장 (소수점 형식)
+            setSummaryData({
+                평균리텐션율: cohortResult.averageRetention.toFixed(2), // 소수점 형식 (예: 5.77)
+                평균리텐션율_퍼센트: cohortResult.averageRetentionPercent.toFixed(2) + "%"
+            });
         }
         else {
             // 모든 KPI 요약 데이터 계산

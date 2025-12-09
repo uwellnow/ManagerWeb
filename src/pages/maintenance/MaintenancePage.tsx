@@ -50,6 +50,7 @@ const MaintenancePage = () => {
             '20255621': '세계대학조정대회',
             '20259764': '머슬비치',
             '20252323': '유어스핏',
+            '20252424': '바이젝',
         };
         return storeMap[apiKey] || apiKey;
     };
