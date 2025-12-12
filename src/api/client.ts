@@ -62,7 +62,10 @@ class ApiClient {
                 console.log('Failed to parse error response');
             }
 
-            throw new Error(errorMessage);
+            // 에러 객체에 status 정보 포함
+            const error = new Error(errorMessage);
+            (error as any).status = response.status;
+            throw error;
         }
 
         const data = await response.json();

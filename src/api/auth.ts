@@ -8,6 +8,7 @@ export interface LoginRequest {
 export interface LoginResponse {
     access_token: string;
     token_type: string;
+    store_name: string | null; // null이면 전체 관리자
 }
 
 export interface ApiError {
@@ -22,9 +23,14 @@ export const authApi = {
 };
 
 export const tokenStorage = {
-    setToken(token: string, tokenType: string) {
+    setToken(token: string, tokenType: string, storeName: string | null = null) {
         localStorage.setItem('access_token', token);
         localStorage.setItem('token_type', tokenType);
+        if (storeName !== null) {
+            localStorage.setItem('store_name', storeName);
+        } else {
+            localStorage.removeItem('store_name');
+        }
     },
 
     getToken(): string | null {
@@ -35,9 +41,14 @@ export const tokenStorage = {
         return localStorage.getItem('token_type');
     },
 
+    getStoreName(): string | null {
+        return localStorage.getItem('store_name');
+    },
+
     clearToken() {
         localStorage.removeItem('access_token');
         localStorage.removeItem('token_type');
+        localStorage.removeItem('store_name');
     },
 
     isAuthenticated(): boolean {

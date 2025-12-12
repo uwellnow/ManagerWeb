@@ -9,7 +9,7 @@ import type { OrderResponse } from "../../types/DTO/OrderResponseDto";
 import type { Member } from "../../types/DTO/MemberResponseDto";
 
 const OrderPage = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, storeName } = useAuth();
     const { dateRange } = useDate();
     const navigate = useNavigate();
     const [orders, setOrders] = useState<OrderResponse>([]);
@@ -85,8 +85,12 @@ const OrderPage = () => {
         fetchOrders();
     }, [isAuthenticated, dateRange, selectedStore]);
 
-    // 매장 목록 추출 (전체 데이터에서 고정)
-    const stores = ["모든 전체 주문", "오늘의 전체 주문", ...Array.from(new Set(allOrders.map(order => order.store_name)))];
+    // 매장 목록
+    // 매장 관리자는 전체 주문과 오늘의 전체 주문만 표시 (백엔드에서 이미 필터링됨)
+    // 전체 관리자는 모든 매장명도 포함
+    const stores = storeName 
+        ? ["모든 전체 주문", "오늘의 전체 주문"]
+        : ["모든 전체 주문", "오늘의 전체 주문", ...Array.from(new Set(allOrders.map(order => order.store_name)))];
 
     // 회원 구분 결정 함수 - CustomerPage의 getMemberType 로직 복사
     const getMemberType = (member: Member): string => {

@@ -44,11 +44,17 @@ const LoginPage = () => {
         try {
             const response = await authApi.login({ username, password });
             console.log('Login successful:', response);
-            login(response.access_token, response.token_type);
+            login(response.access_token, response.token_type, response.store_name);
             navigate('/dashboard');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Login error:', error);
-            setError(error instanceof Error ? error.message : '로그인에 실패했습니다. 다시 시도해주세요.');
+            // 400 에러인 경우 비밀번호 확인 메시지 표시
+            if (error?.status === 400) {
+                alert('비밀번호를 다시 확인해주세요.');
+                setError('비밀번호를 다시 확인해주세요.');
+            } else {
+                setError(error instanceof Error ? error.message : '로그인에 실패했습니다. 다시 시도해주세요.');
+            }
         } finally {
             setIsLoading(false);
         }

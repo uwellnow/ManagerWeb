@@ -5,16 +5,23 @@ import { stocksApi } from "../../api/stocks";
 import type { StockResponse, StockData, StockLogResponse, StockLogData, StorageStockResponse, ProductData } from "../../types/DTO/StockResponseDto";
 
 const StockPage = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, storeName } = useAuth();
     const navigate = useNavigate();
     const [stocks, setStocks] = useState<StockResponse>([]);
     const [productsData, setProductsData] = useState<ProductData[]>([]);
     const [stockLogs, setStockLogs] = useState<StockLogResponse>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
-    const [selectedStore, setSelectedStore] = useState<string>("중앙창고");
+    // storeName이 있으면 해당 매장으로 초기 선택, 없으면 중앙창고
+    const [selectedStore, setSelectedStore] = useState<string>(() => {
+        // 초기값은 storeName이 있으면 해당 매장, 없으면 중앙창고
+        return storeName || "중앙창고";
+    });
     const [storageStocks, setStorageStocks] = useState<StorageStockResponse>([]);
-    const [selectedLogStore, setSelectedLogStore] = useState<string>("중앙창고");
+    // storeName이 있으면 해당 매장으로 초기 선택, 없으면 중앙창고
+    const [selectedLogStore, setSelectedLogStore] = useState<string>(() => {
+        return storeName || "중앙창고";
+    });
     const [currentLogPage, setCurrentLogPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedStock, setSelectedStock] = useState<StockData | null>(null);
@@ -41,12 +48,17 @@ const StockPage = () => {
                 setIsError(false);
                 
                 // 재고 데이터, 제품 데이터, 로그 데이터를 병렬로 가져오기
-                const [stocksData, productsData, logsData, storageStocks] = await Promise.all([
+                // 매장 관리자는 storage API 호출 안 함 (403 에러 방지)
+                const [stocksData, productsData, logsData] = await Promise.all([
                     stocksApi.getStocks(),
                     stocksApi.getProducts(),
-                    stocksApi.getStockLogs(),
-                    stocksApi.getStorageStocks()
+                    stocksApi.getStockLogs()
                 ]);
+                
+                // 전체 관리자만 storage API 호출
+                const storageStocks: StorageStockResponse = storeName 
+                    ? [] 
+                    : await stocksApi.getStorageStocks();
                 
                 // '테스트용' 제외
                 const filteredStocks = stocksData.filter(stock => stock.storeName !== '테스트용');
@@ -76,13 +88,37 @@ const StockPage = () => {
         fetchData();
     }, [isAuthenticated]);
 
+    // storeName이 변경되면 해당 매장으로 자동 선택
+    useEffect(() => {
+        if (storeName) {
+            setSelectedStore(storeName);
+            setSelectedLogStore(storeName);
+        } else if (!storeName) {
+            // 전체 관리자가 되었을 때 중앙창고로 리셋
+            if (selectedStore !== "중앙창고") {
+                setSelectedStore("중앙창고");
+            }
+            if (selectedLogStore !== "중앙창고") {
+                setSelectedLogStore("중앙창고");
+            }
+        }
+    }, [storeName]);
+
     // 매장 목록 추출 (중앙창고 먼저)
     const storeSet = Array.from(new Set(stocks.map(stock => stock.storeName)));
-    const stores = ["중앙창고", ...storeSet];
+    // storeName이 있으면 해당 매장만, 없으면 모든 매장
+    const availableStores = storeName 
+        ? [storeName] // 매장 관리자는 자신의 매장만
+        : ["중앙창고", ...storeSet]; // 전체 관리자는 모든 매장
+    const stores = availableStores;
     
     // 로그 매장 목록 추출 (중앙창고 먼저)
     const logStoreSet = Array.from(new Set(stockLogs.map(log => log.store_name))).filter(name => name !== "중앙창고");
-    const logStores = ["중앙창고", ...logStoreSet];
+    // storeName이 있으면 해당 매장만, 없으면 모든 매장
+    const availableLogStores = storeName
+        ? [storeName] // 매장 관리자는 자신의 매장만
+        : ["중앙창고", ...logStoreSet]; // 전체 관리자는 모든 매장
+    const logStores = availableLogStores;
 
     // 필터링된 재고 데이터 (중앙창고 포함)
     const filteredStocks = selectedStore === "중앙창고"
@@ -299,10 +335,12 @@ const StockPage = () => {
                     reason: reason.trim() || undefined // 비고가 있으면 전송
                 });
                 
-                const [updatedStorageData, logsData] = await Promise.all([
-                    stocksApi.getStorageStocks(),
-                    stocksApi.getStockLogs()
-                ]);
+                // 매장 관리자는 storage API 호출 안 함
+                const logsData = await stocksApi.getStockLogs();
+                const updatedStorageData: StorageStockResponse = storeName 
+                    ? [] 
+                    : await stocksApi.getStorageStocks();
+                
                 setStorageStocks(updatedStorageData);
                 setStockLogs(logsData); 
                 
@@ -347,12 +385,17 @@ const StockPage = () => {
                     reason: reason.trim() || undefined // 비고가 있으면 전송
                 });
 
-                const [updatedStocksData, productData, logsData, updatedStorageData] = await Promise.all([
+                // 매장 관리자는 storage API 호출 안 함
+                const [updatedStocksData, productData, logsData] = await Promise.all([
                     stocksApi.getStocks(),
                     stocksApi.getProducts(),
-                    stocksApi.getStockLogs(),
-                    stocksApi.getStorageStocks()  
+                    stocksApi.getStockLogs()
                 ]);
+                
+                // 전체 관리자만 storage API 호출
+                const updatedStorageData: StorageStockResponse = storeName 
+                    ? [] 
+                    : await stocksApi.getStorageStocks();
 
                 const filteredStocks = updatedStocksData.filter(stock => stock.storeName !== '테스트용');
                 const stocksWithCapacity = filteredStocks.map(stock => {
@@ -420,24 +463,32 @@ const StockPage = () => {
         <div className="flex-1 p-3 sm:p-4 lg:p-6">
             {/* 상단 탭 */}
             <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-4">
-                {/* 매장 선택 탭 */}
-                <div className="flex flex-wrap gap-1 sm:gap-2 bg-white rounded-lg sm:rounded-xl p-1 sm:p-2 shadow-sm">
-                    {stores.map((store) => (
-                        <button
-                            key={store}
-                            onClick={() => {
-                                setSelectedStore(store);
-                            }}
-                            className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
-                                selectedStore === store
-                                    ? 'bg-mainRed text-white shadow-sm'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                            }`}
-                        >
-                            {store}
-                        </button>
-                    ))}
-                </div>
+                {/* 매장 선택 탭 - 전체 관리자만 표시 */}
+                {!storeName && (
+                    <div className="flex flex-wrap gap-1 sm:gap-2 bg-white rounded-lg sm:rounded-xl p-1 sm:p-2 shadow-sm">
+                        {stores.map((store) => (
+                            <button
+                                key={store}
+                                onClick={() => {
+                                    setSelectedStore(store);
+                                }}
+                                className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
+                                    selectedStore === store
+                                        ? 'bg-mainRed text-white shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                }`}
+                            >
+                                {store}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                {/* 매장 관리자는 현재 매장 표시 */}
+                {storeName && (
+                    <div className="px-3 sm:px-4 py-2 sm:py-3 bg-mainRed text-white rounded-lg sm:rounded-xl font-medium text-sm sm:text-base">
+                        {storeName}
+                    </div>
+                )}
             </div>
 
             {/* 재고 요약 */}
@@ -534,25 +585,33 @@ const StockPage = () => {
             <div className="mt-8 sm:mt-10 lg:mt-12">
                 {/* 로그 상단 탭 */}
                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-4">
-                    {/* 로그 매장 선택 탭 */}
-                    <div className="flex flex-wrap gap-1 sm:gap-2 bg-white rounded-lg sm:rounded-xl p-1 sm:p-2 shadow-sm">
-                        {logStores.map((store) => (
-                            <button
-                                key={store}
-                                onClick={() => {
-                                    setSelectedLogStore(store);
-                                    setCurrentLogPage(1);
-                                }}
-                                className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
-                                    selectedLogStore === store
-                                        ? 'bg-mainRed text-white shadow-sm'
-                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                                }`}
-                            >
-                                {store}
-                            </button>
-                        ))}
-                    </div>
+                    {/* 로그 매장 선택 탭 - 전체 관리자만 표시 */}
+                    {!storeName && (
+                        <div className="flex flex-wrap gap-1 sm:gap-2 bg-white rounded-lg sm:rounded-xl p-1 sm:p-2 shadow-sm">
+                            {logStores.map((store) => (
+                                <button
+                                    key={store}
+                                    onClick={() => {
+                                        setSelectedLogStore(store);
+                                        setCurrentLogPage(1);
+                                    }}
+                                    className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm lg:text-base font-medium transition-colors whitespace-nowrap ${
+                                        selectedLogStore === store
+                                            ? 'bg-mainRed text-white shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    {store}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {/* 매장 관리자는 현재 매장 표시 */}
+                    {storeName && (
+                        <div className="px-3 sm:px-4 py-2 sm:py-3 bg-mainRed text-white rounded-lg sm:rounded-xl font-medium text-sm sm:text-base">
+                            {storeName}
+                        </div>
+                    )}
                 </div>
 
                 {/* 재고 로그 요약 */}
