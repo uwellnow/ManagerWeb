@@ -16,7 +16,7 @@ interface HeaderProps {
 }
 
 const Header = ({ onMenuClick }: HeaderProps) => {
-    const { logout } = useAuth();
+    const { logout, storeName } = useAuth();
     const { selectedDate, setSelectedDate, dateRange, setDateRange } = useDate();
     const navigate = useNavigate();
     const location = useLocation();
@@ -121,7 +121,9 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                 </div>
 
                 <div className="hidden sm:flex flex-col space-y-1">
-                    <div className="text-black font-bold text-sm lg:text-md">유웰나우 관리자</div>
+                    <div className="text-black font-bold text-sm lg:text-md">
+                        {storeName ? `${storeName} 관리자` : '유웰나우 관리자'}
+                    </div>
                     <button 
                         onClick={handleLogout}
                         className="text-gray-600 font-medium text-xs lg:text-sm hover:text-red-500 transition-colors duration-200 cursor-pointer"

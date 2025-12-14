@@ -257,6 +257,7 @@ const StockPage = () => {
             manager: "" 
         });
         setRestockCount("");
+        setUseCountUnit(false); // 기본값은 통 단위
         setIsModalOpen(true);
     };
 
@@ -346,14 +347,19 @@ const StockPage = () => {
                 
             } else {
                 const oneCapacity = selectedStock.one_capacity || 0;
+                const isStoreManager = !!storeName; // 매장 관계자 여부
                 
                 // 확인 메시지 표시 (통 단위인지 횟수 단위인지에 따라)
                 if (!useCountUnit && oneCapacity > 0) {
                     // 통 단위일 때 확인 메시지 (실제 증가할 횟수 표시)
                     const totalCount = count * oneCapacity;
                     const confirmMessage = count > 0
-                        ? `${count}통 (${totalCount}회)이 충전됩니다.\n중앙창고에서 ${count}통이 차감됩니다.\n계속하시겠습니까?`
-                        : `${Math.abs(count)}통 (${Math.abs(totalCount)}회)이 차감됩니다.\n중앙창고에 ${Math.abs(count)}통이 반환됩니다.\n계속하시겠습니까?`;
+                        ? isStoreManager
+                            ? `${count}통 (${totalCount}회)이 충전됩니다.\n(중앙창고에 반영되지 않습니다)\n계속하시겠습니까?`
+                            : `${count}통 (${totalCount}회)이 충전됩니다.\n중앙창고에서 ${count}통이 차감됩니다.\n계속하시겠습니까?`
+                        : isStoreManager
+                            ? `${Math.abs(count)}통 (${Math.abs(totalCount)}회)이 차감됩니다.\n(중앙창고에 반영되지 않습니다)\n계속하시겠습니까?`
+                            : `${Math.abs(count)}통 (${Math.abs(totalCount)}회)이 차감됩니다.\n중앙창고에 ${Math.abs(count)}통이 반환됩니다.\n계속하시겠습니까?`;
                     
                     const confirm = window.confirm(confirmMessage);
                     if (!confirm) {
@@ -374,14 +380,14 @@ const StockPage = () => {
                 }
                 
                 // 백엔드에 입력값 그대로 전송 (통 단위면 통 개수, 횟수 단위면 횟수)
-                // 백엔드에서 isCountUnit에 따라 one_capacity 곱셈 처리
+                // 매장 관계자는 항상 isCountUnit: true로 설정하여 중앙창고 차감 안되도록
                 await stocksApi.restockStock({
                     productId: selectedStock.productId,
                     storeName: selectedStock.storeName,
                     updateCount: count, // 입력값 그대로 전송
                     updatedAt: new Date().toISOString(),
                     managerName: selectedStock.manager,
-                    isCountUnit: useCountUnit, // 횟수 단위 여부 전달
+                    isCountUnit: isStoreManager ? true : useCountUnit, // 매장 관계자는 항상 true
                     reason: reason.trim() || undefined // 비고가 있으면 전송
                 });
 
@@ -812,7 +818,7 @@ const StockPage = () => {
                                         className="w-4 h-4 text-mainRed border-gray-300 rounded focus:ring-mainRed"
                                     />
                                     <label htmlFor="useCountUnit" className="text-sm sm:text-base font-medium text-gray-700 cursor-pointer">
-                                        횟수 단위로 충전 (중앙창고 재고 차감 안됨)
+                                        횟수 단위로 충전
                                     </label>
                                 </div>
                             )}
@@ -867,7 +873,21 @@ const StockPage = () => {
                                             1통 = {selectedStock.one_capacity}회 
                                             {restockCount && !isNaN(parseInt(restockCount)) && (
                                                 <span className="font-semibold text-mainRed ml-2">
-                                                    (총 {parseInt(restockCount) * selectedStock.one_capacity}회 / 중앙창고 {parseInt(restockCount)}통 차감)
+                                                    {storeName 
+                                                        ? `(총 ${parseInt(restockCount) * selectedStock.one_capacity}회)`
+                                                        : `(총 ${parseInt(restockCount) * selectedStock.one_capacity}회 / 중앙창고 ${parseInt(restockCount)}통 차감)`
+                                                    }
+                                                </span>
+                                            )}
+                                        </p>
+                                    )}
+                                    {/* 매장 재고 & 횟수 단위일 때 변환 정보 표시 */}
+                                    {selectedStock?.storeName !== "중앙창고" && useCountUnit && selectedStock.one_capacity && selectedStock.one_capacity > 0 && (
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            1통 = {selectedStock.one_capacity}회 
+                                            {restockCount && !isNaN(parseInt(restockCount)) && (
+                                                <span className="font-semibold text-mainRed ml-2">
+                                                    (총 {parseInt(restockCount)}회)
                                                 </span>
                                             )}
                                         </p>
