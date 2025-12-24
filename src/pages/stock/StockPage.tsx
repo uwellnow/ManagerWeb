@@ -32,7 +32,6 @@ const StockPage = () => {
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     const [selectedLog, setSelectedLog] = useState<StockLogData | null>(null);
     const [sortBy, setSortBy] = useState<"id" | "name">("id"); // 정렬 기준
-    const itemsPerPage = 10;
     const logsPerPage = 10;
 
     useEffect(() => {
