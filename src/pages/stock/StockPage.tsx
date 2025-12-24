@@ -25,6 +25,7 @@ const StockPage = () => {
     const [reason, setReason] = useState(""); // 재고 보충 이유 (비고)
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     const [selectedLog, setSelectedLog] = useState<StockLogData | null>(null);
+    const [sortBy, setSortBy] = useState<"id" | "name">("id"); // 정렬 기준
     const itemsPerPage = 10;
     const logsPerPage = 10;
 
@@ -89,10 +90,6 @@ const StockPage = () => {
     // 필터링된 재고 데이터 (중앙창고 포함)
     const filteredStocks = selectedStore === "중앙창고"
     ? productsData
-        .filter(product => {
-            // ID 1~9번 또는 100~101번만 표시
-            return (product.id >= 1 && product.id <= 9) || (product.id >= 100 && product.id <= 101);
-        })
         .map(product => {
             // storageStocks에서 해당 제품의 재고 정보 찾기
             const storageStock = storageStocks.find(s => s.productId === product.id);
@@ -123,9 +120,9 @@ const StockPage = () => {
                 one_capacity: product.one_capacity || 0
             };
         })
-        .sort((a, b) => a.productId - b.productId)
+        .sort((a, b) => sortBy === "id" ? a.productId - b.productId : a.productName.localeCompare(b.productName))
     : stocks.filter(stock => stock.storeName === selectedStore)
-        .sort((a, b) => a.productId - b.productId);
+        .sort((a, b) => sortBy === "id" ? a.productId - b.productId : a.productName.localeCompare(b.productName));
 
     // 필터링된 로그 데이터 (변경량이 양수인 경우만)
     const filteredLogs = stockLogs
@@ -434,8 +431,30 @@ const StockPage = () => {
             </div>
 
             {/* 재고 요약 */}
-            <div className="mb-4 sm:mb-6">
+            <div className="mb-4 sm:mb-6 flex items-center justify-between gap-4">
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">재고 ({filteredStocks.length})</h2>
+                <div className="flex items-center gap-2 bg-white rounded-lg sm:rounded-xl p-1 shadow-sm">
+                    <button
+                        onClick={() => setSortBy("id")}
+                        className={`px-3 sm:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                            sortBy === "id"
+                                ? 'bg-mainRed text-white shadow-sm'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                    >
+                        ID 기준
+                    </button>
+                    <button
+                        onClick={() => setSortBy("name")}
+                        className={`px-3 sm:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                            sortBy === "name"
+                                ? 'bg-mainRed text-white shadow-sm'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                    >
+                        제품명 기준
+                    </button>
+                </div>
             </div>
 
             {/* 재고 테이블 */}
