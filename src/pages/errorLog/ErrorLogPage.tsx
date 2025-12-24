@@ -63,6 +63,8 @@ const ErrorLogPage = () => {
                 return '멋짐';
             case 20252323:
                 return '유어스핏';
+            case 20252424:
+                return '바이젝';
             default:
                 return `기기 ${machineId}`;
         }

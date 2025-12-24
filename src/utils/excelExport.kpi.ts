@@ -104,14 +104,27 @@ export const generateCohortRetentionSummary = (orders: OrderData[], dateRange?: 
             return user.visit_dates.includes(dateStr);
         }).length;
 
+        const retentionRate = totalUsers > 0 ? (retainedUsers / totalUsers) * 100 : 0;
+
         return {
             Day: `Day${day}`,
             이용자수: retainedUsers,
-            리텐션율: ((retainedUsers / totalUsers) * 100).toFixed(1) + "%",
+            리텐션율: retentionRate.toFixed(1) + "%",
+            리텐션율_숫자: retentionRate, // 평균 계산을 위한 숫자 값
         };
     });
 
-    return cohortSummary;
+    // 각 DAYN 리텐션율의 평균 계산 (퍼센트를 소수점으로 변환)
+    const retentionRates = cohortSummary.map(item => item.리텐션율_숫자 / 100); // 퍼센트를 소수점으로 변환
+    const averageRetention = retentionRates.length > 0 
+        ? retentionRates.reduce((sum, rate) => sum + rate, 0) / retentionRates.length 
+        : 0;
+
+    return {
+        summary: cohortSummary,
+        averageRetention: averageRetention, // 평균 리텐션율 (소수점, 예: 0.0577 = 5.77%)
+        averageRetentionPercent: averageRetention * 100, // 평균 리텐션율 (퍼센트)
+    };
 };
 
 /* -------------------------------------------
@@ -123,14 +136,16 @@ export const exportRetentionKPIToExcel = (
     selectedUser?: string
 ) => {
     const userRetention = generateRetentionTable(orders, dateRange);
-    const cohortSummary = generateCohortRetentionSummary(orders, dateRange);
+    const cohortResult = generateCohortRetentionSummary(orders, dateRange);
+    const cohortSummary = cohortResult.summary;
 
     // 개인 리텐션 CSV 변환
     const userRetentionSheet = XLSX.utils.json_to_sheet(userRetention);
     const userRetentionCsv = XLSX.utils.sheet_to_csv(userRetentionSheet);
 
-    // 전체 리텐션 요약 CSV 변환
-    const cohortSummarySheet = XLSX.utils.json_to_sheet(cohortSummary);
+    // 전체 리텐션 요약 CSV 변환 (리텐션율_숫자 필드 제거)
+    const cohortSummaryForExport = cohortSummary.map(({ 리텐션율_숫자, ...rest }) => rest);
+    const cohortSummarySheet = XLSX.utils.json_to_sheet(cohortSummaryForExport);
     const cohortSummaryCsv = XLSX.utils.sheet_to_csv(cohortSummarySheet);
 
     // 두 테이블을 구분선으로 분리하여 결합

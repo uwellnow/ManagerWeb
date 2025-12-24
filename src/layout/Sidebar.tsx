@@ -24,7 +24,7 @@ const sideItems = [
 ]
 
 const Sidebar = ({ onClose }: SidebarProps) => {
-    const { logout } = useAuth();
+    const { logout, storeName } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -64,40 +64,49 @@ const Sidebar = ({ onClose }: SidebarProps) => {
             </div>
 
             <nav className="mt-4 space-y-2 px-6 lg:px-12 flex-1">
-                {sideItems.map(({ label, path, img, activeImg, inactiveImg }) => (
-                    <NavLink
-                        key={path}
-                        to={path}
-                        onClick={handleNavClick}
-                        className={({ isActive }) =>
-                            `flex items-center px-4 lg:px-6 py-3 h-14 lg:h-16 rounded-2xl text-sm lg:text-md transition ${
-                                isActive
-                                    ? 'bg-mainRed text-white font-bold text-base lg:text-lg hover:text-white'
-                                    : 'text-lightGray font-medium hover:text-lightGray'
-                            }`
+                {sideItems
+                    .filter(item => {
+                        // 매장 관리자는 주문, 고객 정보, 재고, 점검중만 표시
+                        if (storeName) {
+                            return ['/order', '/customer', '/stock', '/maintenance'].includes(item.path);
                         }
-                    >
-                        {({ isActive }) => (
-                            <>
-                                {activeImg && inactiveImg ? (
-                                    <img
-                                        src={isActive ? activeImg : inactiveImg}
-                                        alt={label}
-                                        className="w-6 h-6 lg:w-7 lg:h-7 mr-3"
-                                    />
-                                ) : (
-                                    <img
-                                        src={img}
-                                        alt={label}
-                                        className={`w-6 h-6 lg:w-7 lg:h-7 mr-3 ${isActive ? 'brightness-0 invert' : ''}`}
-                                    />
-                                )}
-                                <span className="hidden sm:inline">{label}</span>
-                                <span className="sm:hidden text-xs">{label}</span>
-                            </>
-                        )}
-                    </NavLink>
-                ))}
+                        // 전체 관리자는 모든 메뉴 표시
+                        return true;
+                    })
+                    .map(({ label, path, img, activeImg, inactiveImg }) => (
+                        <NavLink
+                            key={path}
+                            to={path}
+                            onClick={handleNavClick}
+                            className={({ isActive }) =>
+                                `flex items-center px-4 lg:px-6 py-3 h-14 lg:h-16 rounded-2xl text-sm lg:text-md transition ${
+                                    isActive
+                                        ? 'bg-mainRed text-white font-bold text-base lg:text-lg hover:text-white'
+                                        : 'text-lightGray font-medium hover:text-lightGray'
+                                }`
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    {activeImg && inactiveImg ? (
+                                        <img
+                                            src={isActive ? activeImg : inactiveImg}
+                                            alt={label}
+                                            className="w-6 h-6 lg:w-7 lg:h-7 mr-3"
+                                        />
+                                    ) : (
+                                        <img
+                                            src={img}
+                                            alt={label}
+                                            className={`w-6 h-6 lg:w-7 lg:h-7 mr-3 ${isActive ? 'brightness-0 invert' : ''}`}
+                                        />
+                                    )}
+                                    <span className="hidden sm:inline">{label}</span>
+                                    <span className="sm:hidden text-xs">{label}</span>
+                                </>
+                            )}
+                        </NavLink>
+                    ))}
             </nav>
 
             <div className="px-4 pb-6">

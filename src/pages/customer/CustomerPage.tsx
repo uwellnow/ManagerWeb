@@ -9,7 +9,7 @@ import type { Member, RefundLog } from "../../types/DTO/MemberResponseDto";
 import { exportMembersToExcel } from "../../utils/excelExport";
 
 const CustomerPage = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, storeName } = useAuth();
     const { selectedDate } = useDate(); // Header의 날짜 선택 사용
     const navigate = useNavigate();
     const [allMembers, setAllMembers] = useState<Member[]>([]); // 전체 회원 데이터
@@ -66,7 +66,13 @@ const CustomerPage = () => {
                 // 그 다음 회원 데이터 조회
                 const data = await membersApi.getMembers();
                 // 전체 회원 데이터 저장 (필터링 없이) - 타입 단언 사용
-                const sortedAllMembers = (data.members as Member[]).sort((a, b) => b.id - a.id);
+                let sortedAllMembers = (data.members as Member[]).sort((a, b) => b.id - a.id);
+                
+                // 매장 관리자인 경우 해당 매장에 등록된 회원만 필터링
+                if (storeName) {
+                    sortedAllMembers = sortedAllMembers.filter(member => member.registrant_store === storeName);
+                }
+                
                 setAllMembers(sortedAllMembers);
                 
                 // 초기에는 전체 회원을 표시 (멤버십 여부 상관없이)
@@ -361,8 +367,14 @@ const CustomerPage = () => {
                 membersApi.getMembers(),
                 membersApi.getRefunds()
             ]);
-            // 전체 회원 데이터 저장 (필터링 없이) - 타입 단언 사용
-            const sortedAllMembers = (membersData.members as Member[]).sort((a, b) => b.id - a.id);
+            // 전체 회원 데이터 저장 - 타입 단언 사용
+            let sortedAllMembers = (membersData.members as Member[]).sort((a, b) => b.id - a.id);
+            
+            // 매장 관리자인 경우 해당 매장에 등록된 회원만 필터링
+            if (storeName) {
+                sortedAllMembers = sortedAllMembers.filter(member => member.registrant_store === storeName);
+            }
+            
             setAllMembers(sortedAllMembers);
             
             // 현재 선택된 필터에 따라 데이터 설정
@@ -494,8 +506,14 @@ const CustomerPage = () => {
                 membersApi.getMembers(),
                 membersApi.getRefunds()
             ]);
-            // 전체 회원 데이터 저장 (필터링 없이) - 타입 단언 사용
-            const sortedAllMembers = (membersData.members as Member[]).sort((a, b) => b.id - a.id);
+            // 전체 회원 데이터 저장 - 타입 단언 사용
+            let sortedAllMembers = (membersData.members as Member[]).sort((a, b) => b.id - a.id);
+            
+            // 매장 관리자인 경우 해당 매장에 등록된 회원만 필터링
+            if (storeName) {
+                sortedAllMembers = sortedAllMembers.filter(member => member.registrant_store === storeName);
+            }
+            
             setAllMembers(sortedAllMembers);
             
             // 현재 선택된 필터에 따라 데이터 설정

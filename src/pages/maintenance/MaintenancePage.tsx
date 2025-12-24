@@ -5,7 +5,7 @@ import { systemStatusApi } from "../../api/systemStatus";
 import type { SystemStatus } from "../../types/DTO/SystemStatusResponseDto";
 
 const MaintenancePage = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, storeName } = useAuth();
     const navigate = useNavigate();
     const [systemStatuses, setSystemStatuses] = useState<SystemStatus[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +50,7 @@ const MaintenancePage = () => {
             '20255621': '세계대학조정대회',
             '20259764': '머슬비치',
             '20252323': '유어스핏',
+            '20252424': '바이젝',
         };
         return storeMap[apiKey] || apiKey;
     };
@@ -139,12 +140,17 @@ const MaintenancePage = () => {
         );
     }
 
+    // 매장 관리자인 경우 해당 매장만 필터링
+    const filteredStatuses = storeName
+        ? systemStatuses.filter(status => getStoreNameByApiKey(status.api_key) === storeName)
+        : systemStatuses;
+
     return (
         <div className="flex-1 p-3 sm:p-4 lg:p-6">
             {/* 헤더 */}
             <div className="mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-                    시스템 점검 상태 ({systemStatuses.length})
+                    시스템 점검 상태 ({filteredStatuses.length})
                 </h2>
             </div>
 
@@ -162,14 +168,14 @@ const MaintenancePage = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {systemStatuses.length === 0 ? (
+                            {filteredStatuses.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-2 sm:px-3 lg:px-6 py-8 text-center text-gray-500">
                                         등록된 점검 상태가 없습니다.
                                     </td>
                                 </tr>
                             ) : (
-                                systemStatuses.map((status) => (
+                                filteredStatuses.map((status) => (
                                     <tr key={status.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900 font-medium">
                                             {status.id}
