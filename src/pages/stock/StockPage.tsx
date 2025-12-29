@@ -344,19 +344,14 @@ const StockPage = () => {
                 
             } else {
                 const oneCapacity = selectedStock.one_capacity || 0;
-                const isStoreManager = !!storeName; // 매장 관계자 여부
                 
                 // 확인 메시지 표시 (통 단위인지 횟수 단위인지에 따라)
                 if (!useCountUnit && oneCapacity > 0) {
                     // 통 단위일 때 확인 메시지 (실제 증가할 횟수 표시)
                     const totalCount = count * oneCapacity;
                     const confirmMessage = count > 0
-                        ? isStoreManager
-                            ? `${count}통 (${totalCount}회)이 충전됩니다.\n(중앙창고에 반영되지 않습니다)\n계속하시겠습니까?`
-                            : `${count}통 (${totalCount}회)이 충전됩니다.\n중앙창고에서 ${count}통이 차감됩니다.\n계속하시겠습니까?`
-                        : isStoreManager
-                            ? `${Math.abs(count)}통 (${Math.abs(totalCount)}회)이 차감됩니다.\n(중앙창고에 반영되지 않습니다)\n계속하시겠습니까?`
-                            : `${Math.abs(count)}통 (${Math.abs(totalCount)}회)이 차감됩니다.\n중앙창고에 ${Math.abs(count)}통이 반환됩니다.\n계속하시겠습니까?`;
+                        ? `${count}통 (${totalCount}회)이 충전됩니다.\n중앙창고에서 ${count}통이 차감됩니다.\n계속하시겠습니까?`
+                        : `${Math.abs(count)}통 (${Math.abs(totalCount)}회)이 차감됩니다.\n중앙창고에 ${Math.abs(count)}통이 반환됩니다.\n계속하시겠습니까?`;
                     
                     const confirm = window.confirm(confirmMessage);
                     if (!confirm) {
@@ -377,14 +372,14 @@ const StockPage = () => {
                 }
                 
                 // 백엔드에 입력값 그대로 전송 (통 단위면 통 개수, 횟수 단위면 횟수)
-                // 매장 관계자는 항상 isCountUnit: true로 설정하여 중앙창고 차감 안되도록
+                // 통 단위면 false (중앙창고 차감), 횟수 단위면 true (중앙창고 차감 안 함)
                 await stocksApi.restockStock({
                     productId: selectedStock.productId,
                     storeName: selectedStock.storeName,
                     updateCount: count, // 입력값 그대로 전송
                     updatedAt: new Date().toISOString(),
                     managerName: selectedStock.manager,
-                    isCountUnit: isStoreManager ? true : useCountUnit, // 매장 관계자는 항상 true
+                    isCountUnit: useCountUnit, // 통 단위면 false, 횟수 단위면 true
                     reason: reason.trim() || undefined // 비고가 있으면 전송
                 });
 
