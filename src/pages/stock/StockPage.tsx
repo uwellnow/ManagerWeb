@@ -64,12 +64,12 @@ const StockPage = () => {
                 // '테스트용' 제외
                 const filteredStocks = stocksData.filter(stock => stock.storeName !== '테스트용');
                 
-                // one_capacity 값 추가 (새로운 응답 형식에는 one_capacity가 없으므로 기본값 사용)
+                // one_capacity 값 추가
                 const stocksWithCapacity = filteredStocks.map(stock => {
                     const product = productsData.find(p => p.productId === stock.productId);
                     return {
                         ...stock,
-                        one_capacity: 0 // 새로운 응답 형식에는 one_capacity가 없음
+                        one_capacity: product?.oneCapacity || 0
                     };
                 });
                 
@@ -156,7 +156,7 @@ const StockPage = () => {
                 manager: storageStock?.manager || "-",
                 productStatus: status,
                 storeName: "중앙창고",
-                one_capacity: 0 // 새로운 응답 형식에는 one_capacity가 없음
+                one_capacity: product.oneCapacity || 0
             };
         })
         .sort((a, b) => sortBy === "id" ? a.productId - b.productId : a.productName.localeCompare(b.productName))
@@ -409,7 +409,7 @@ const StockPage = () => {
                     const product = productData.find(p => p.productId === stock.productId);
                     return {
                         ...stock,
-                        one_capacity: 0 // 새로운 응답 형식에는 one_capacity가 없음
+                        one_capacity: product?.oneCapacity || 0
                     };
                 });
                 
@@ -682,8 +682,8 @@ const StockPage = () => {
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                             {log.store_name === "중앙창고" 
                                                 ? (() => {
-                                                    const product = productsData.find(p => p.id === log.product_id);
-                                                    const oneCapacity = product?.one_capacity || 1;
+                                                    const product = productsData.find(p => p.productId === log.product_id);
+                                                    const oneCapacity = product?.oneCapacity || 1;
                                                     return `${Math.floor(log.previous_count / oneCapacity)}통`;
                                                 })()
                                                 : `${log.previous_count}회`
@@ -692,8 +692,8 @@ const StockPage = () => {
                                         <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                             {log.store_name === "중앙창고" 
                                                 ? (() => {
-                                                    const product = productsData.find(p => p.id === log.product_id);
-                                                    const oneCapacity = product?.one_capacity || 1;
+                                                    const product = productsData.find(p => p.productId === log.product_id);
+                                                    const oneCapacity = product?.oneCapacity || 1;
                                                     return `${Math.floor(log.new_count / oneCapacity)}통`;
                                                 })()
                                                 : `${log.new_count}회`
@@ -1004,8 +1004,8 @@ const StockPage = () => {
                                         value={
                                             selectedLog.store_name === "중앙창고"
                                                 ? (() => {
-                                                    const product = productsData.find(p => p.id === selectedLog.product_id);
-                                                    const oneCapacity = product?.one_capacity || 1;
+                                                    const product = productsData.find(p => p.productId === selectedLog.product_id);
+                                                    const oneCapacity = product?.oneCapacity || 1;
                                                     return `${Math.floor(selectedLog.previous_count / oneCapacity)}통`;
                                                 })()
                                                 : `${selectedLog.previous_count}회`
@@ -1021,8 +1021,8 @@ const StockPage = () => {
                                         value={
                                             selectedLog.store_name === "중앙창고"
                                                 ? (() => {
-                                                    const product = productsData.find(p => p.id === selectedLog.product_id);
-                                                    const oneCapacity = product?.one_capacity || 1;
+                                                    const product = productsData.find(p => p.productId === selectedLog.product_id);
+                                                    const oneCapacity = product?.oneCapacity || 1;
                                                     return `${Math.floor(selectedLog.new_count / oneCapacity)}통`;
                                                 })()
                                                 : `${selectedLog.new_count}회`
@@ -1040,8 +1040,8 @@ const StockPage = () => {
                                     value={
                                         selectedLog.store_name === "중앙창고"
                                             ? (() => {
-                                                const product = productsData.find(p => p.id === selectedLog.product_id);
-                                                const oneCapacity = product?.one_capacity || 1;
+                                                const product = productsData.find(p => p.productId === selectedLog.product_id);
+                                                const oneCapacity = product?.oneCapacity || 1;
                                                 return `+${Math.floor(selectedLog.change_amount / oneCapacity)}통`;
                                             })()
                                             : `+${selectedLog.change_amount}회`

@@ -6,6 +6,7 @@ export interface ProductAllData {
     waterAmount: number;
     storeName: string;
     cartridgeIndex: number;
+    oneCapacity: number;
 }
 
 // 기존 ProductData (다른 곳에서 사용할 수 있으므로 유지)
