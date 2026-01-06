@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 import type { StocksSummaryResponse } from '../types/DTO/stocksSummaryResponseDto';
-import type { StockResponse, RestockRequest, ProductData, StockLogResponse, StorageStockResponse, StorageRestockRequest } from '../types/DTO/StockResponseDto';
+import type { StockResponse, RestockRequest, ProductData, ProductAllData, StockLogResponse, StorageStockResponse, StorageRestockRequest } from '../types/DTO/StockResponseDto';
 
 export const stocksApi = {
     async getStocksSummary(): Promise<StocksSummaryResponse> {
@@ -11,8 +11,8 @@ export const stocksApi = {
         return apiClient.get<StockResponse>('/stocks');
     },
 
-    async getProducts(): Promise<ProductData[]> {
-        return apiClient.get<ProductData[]>('/products');
+    async getProducts(): Promise<ProductAllData[]> {
+        return apiClient.get<ProductAllData[]>('/products/all');
     },
 
     async getStockLogs(): Promise<StockLogResponse> {

@@ -1,3 +1,14 @@
+// /products/all GET 응답 형식
+export interface ProductAllData {
+    productId: number;
+    productName: string;
+    powderSec: number;
+    waterAmount: number;
+    storeName: string;
+    cartridgeIndex: number;
+}
+
+// 기존 ProductData (다른 곳에서 사용할 수 있으므로 유지)
 export interface ProductData {
     id: number;
     name: string;

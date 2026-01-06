@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { stocksApi } from "../../api/stocks";
-import type { StockResponse, StockData, StockLogResponse, StockLogData, StorageStockResponse, ProductData } from "../../types/DTO/StockResponseDto";
+import type { StockResponse, StockData, StockLogResponse, StockLogData, StorageStockResponse, ProductAllData } from "../../types/DTO/StockResponseDto";
 
 const StockPage = () => {
     const { isAuthenticated, storeName } = useAuth();
     const navigate = useNavigate();
     const [stocks, setStocks] = useState<StockResponse>([]);
-    const [productsData, setProductsData] = useState<ProductData[]>([]);
+    const [productsData, setProductsData] = useState<ProductAllData[]>([]);
     const [stockLogs, setStockLogs] = useState<StockLogResponse>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
@@ -64,12 +64,12 @@ const StockPage = () => {
                 // '테스트용' 제외
                 const filteredStocks = stocksData.filter(stock => stock.storeName !== '테스트용');
                 
-                // one_capacity 값 추가
+                // one_capacity 값 추가 (새로운 응답 형식에는 one_capacity가 없으므로 기본값 사용)
                 const stocksWithCapacity = filteredStocks.map(stock => {
-                    const product = productsData.find(p => p.id === stock.productId);
+                    const product = productsData.find(p => p.productId === stock.productId);
                     return {
                         ...stock,
-                        one_capacity: product?.one_capacity || 0
+                        one_capacity: 0 // 새로운 응답 형식에는 one_capacity가 없음
                     };
                 });
                 
@@ -122,11 +122,16 @@ const StockPage = () => {
     const logStores = availableLogStores;
 
     // 필터링된 재고 데이터 (중앙창고 포함)
+    // 중앙창고용: productsData에서 중복 제거하여 제품 목록 생성
+    const uniqueProducts = selectedStore === "중앙창고"
+        ? Array.from(new Map(productsData.map(p => [p.productId, p])).values())
+        : [];
+
     const filteredStocks = selectedStore === "중앙창고"
-    ? productsData
+    ? uniqueProducts
         .map(product => {
             // storageStocks에서 해당 제품의 재고 정보 찾기
-            const storageStock = storageStocks.find(s => s.productId === product.id);
+            const storageStock = storageStocks.find(s => s.productId === product.productId);
             const count = storageStock?.count || 0;
             
             // 재고 상태 계산 (통 기준)
@@ -142,16 +147,16 @@ const StockPage = () => {
             }
             
             return {
-                productId: product.id,
-                productName: product.name,
+                productId: product.productId,
+                productName: product.productName || "",
                 productTime: "재고관리" as const,
-                productDescription: product.description,
+                productDescription: "", // 새로운 응답 형식에는 description이 없음
                 productCount: count,
                 updatedAddTime: storageStock?.lastRestockedAt || new Date().toISOString(),
                 manager: storageStock?.manager || "-",
                 productStatus: status,
                 storeName: "중앙창고",
-                one_capacity: product.one_capacity || 0
+                one_capacity: 0 // 새로운 응답 형식에는 one_capacity가 없음
             };
         })
         .sort((a, b) => sortBy === "id" ? a.productId - b.productId : a.productName.localeCompare(b.productName))
@@ -173,7 +178,11 @@ const StockPage = () => {
     const currentLogs = filteredLogs.slice(startLogIndex, endLogIndex);
 
     // 제품 이름 포맷팅 함수 (제품 ID에 따라 구분자 추가)
-    const formatProductName = (productId: number, productName: string): string => {
+    const formatProductName = (productId: number, productName: string | null | undefined): string => {
+        if (!productName) {
+            return `제품 ID: ${productId}`;
+        }
+        
         let formattedName = productName.replace(/\\n/g, ' ');
         
         if (productId === 8) {
@@ -397,10 +406,10 @@ const StockPage = () => {
 
                 const filteredStocks = updatedStocksData.filter(stock => stock.storeName !== '테스트용');
                 const stocksWithCapacity = filteredStocks.map(stock => {
-                    const product = productData.find(p => p.id === stock.productId);
+                    const product = productData.find(p => p.productId === stock.productId);
                     return {
                         ...stock,
-                        one_capacity: product?.one_capacity || 0
+                        one_capacity: 0 // 새로운 응답 형식에는 one_capacity가 없음
                     };
                 });
                 
