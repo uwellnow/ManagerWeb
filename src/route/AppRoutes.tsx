@@ -10,6 +10,8 @@ import MainLayout from "../layout/MainLayout.tsx";
 import KPIPage from "../pages/KPIPage/KPIPage.tsx";
 import MaintenancePage from "../pages/maintenance/MaintenancePage.tsx";
 import SurveyPage from "../pages/survey/SurveyPage.tsx";
+import ProductManagementPage from "../pages/productManagement/ProductManagementPage.tsx";
+import ProductRegisterPage from "../pages/productManagement/ProductRegisterPage.tsx";
 
 const AppRoutes = () => {
     return createBrowserRouter([
@@ -56,6 +58,14 @@ const AppRoutes = () => {
                 {
                     path: '/survey',
                     element: <SurveyPage />
+                },
+                {
+                    path: '/product-management',
+                    element: <ProductManagementPage />
+                },
+                {
+                    path: '/product-management/register',
+                    element: <ProductRegisterPage />
                 },
             ]
         }

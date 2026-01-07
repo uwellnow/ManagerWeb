@@ -146,21 +146,39 @@ const StockPage = () => {
                 status = "안전";
             }
             
+            // 로그에서 해당 제품의 가장 최근 충전 시간 찾기
+            const latestLog = stockLogs
+                .filter(log => log.store_name === "중앙창고" && log.product_id === product.productId && log.change_amount > 0)
+                .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())[0];
+            
             return {
                 productId: product.productId,
                 productName: product.productName || "",
                 productTime: "재고관리" as const,
                 productDescription: "", // 새로운 응답 형식에는 description이 없음
                 productCount: count,
-                updatedAddTime: storageStock?.lastRestockedAt || new Date().toISOString(),
-                manager: storageStock?.manager || "-",
+                updatedAddTime: latestLog?.logged_at || storageStock?.lastRestockedAt || new Date().toISOString(),
+                manager: latestLog?.manager || storageStock?.manager || "-",
                 productStatus: status,
                 storeName: "중앙창고",
                 one_capacity: product.oneCapacity || 0
             };
         })
         .sort((a, b) => sortBy === "id" ? a.productId - b.productId : a.productName.localeCompare(b.productName))
-    : stocks.filter(stock => stock.storeName === selectedStore)
+    : stocks
+        .filter(stock => stock.storeName === selectedStore)
+        .map(stock => {
+            // 로그에서 해당 제품의 가장 최근 충전 시간 찾기
+            const latestLog = stockLogs
+                .filter(log => log.store_name === selectedStore && log.product_id === stock.productId && log.change_amount > 0)
+                .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())[0];
+            
+            return {
+                ...stock,
+                updatedAddTime: latestLog?.logged_at || stock.updatedAddTime,
+                manager: latestLog?.manager || stock.manager
+            };
+        })
         .sort((a, b) => sortBy === "id" ? a.productId - b.productId : a.productName.localeCompare(b.productName));
 
     // 필터링된 로그 데이터 (변경량이 양수인 경우만)
