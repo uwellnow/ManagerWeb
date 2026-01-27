@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { errorLogsApi } from "../../api/errorLogs";
+import { storesApi } from "../../api/stores";
 import type { ErrorLogItem } from "../../types/DTO/ErrorLogResponseDto";
+import type { StoreData } from "../../types/DTO/StoreResponseDto";
 
 const ErrorLogPage = () => {
     const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
+    const [storeList, setStoreList] = useState<StoreData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
     const [selectedStore, setSelectedStore] = useState<string>("전체 에러");
@@ -21,53 +24,43 @@ const ErrorLogPage = () => {
     }, [isAuthenticated, navigate]);
 
     useEffect(() => {
-        const fetchErrorLogs = async () => {
+        const fetchData = async () => {
             if (!isAuthenticated) return;
             
             try {
                 setIsLoading(true);
                 setIsError(false);
-                const data = await errorLogsApi.getErrorLogs();
-               
+                
+                // 매장 정보와 에러 로그를 병렬로 가져오기
+                const [storesData, errorLogsData] = await Promise.all([
+                    storesApi.getStores(),
+                    errorLogsApi.getErrorLogs()
+                ]);
+                
+                setStoreList(storesData);
 
-                // 객체를 배열로 변환하고 '테스트용' 제외
-                const errorLogsArray = Object.values(data).filter(log => {
-                    // machine_id로 매장명 확인하여 '테스트용' 제외
-                    const storeName = getStoreNameByMachineId(log.machine_id);
-                    return storeName !== '테스트';
+                // 객체를 배열로 변환하고 '테스트' 제외
+                const errorLogsArray = Object.values(errorLogsData).filter(log => {
+                    // machine_id를 store_code로 변환하여 매장명 확인
+                    const store = storesData.find(s => s.store_code === String(log.machine_id));
+                    return store?.store_name !== '테스트';
                 });
                 setErrorLogs(errorLogsArray);
             } catch (error) {
-                console.error('Failed to fetch error logs:', error);
+                console.error('Failed to fetch data:', error);
                 setIsError(true);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchErrorLogs();
-    }, [isAuthenticated]); // selectedDate 의존성 제거
+        fetchData();
+    }, [isAuthenticated]);
 
-    // 기기 ID로 매장명 매핑 함수
+    // 기기 ID로 매장명 매핑 함수 (store_code를 사용)
     const getStoreNameByMachineId = (machineId: number): string => {
-        switch (machineId) {
-            case 20250000:
-                return '테스트';
-            case 20255621:
-                return '세계대학조정대회';
-            case 20259764:
-                return '머슬비치';
-            case 20252354:
-                return '인트로피트니스';
-            case 20258575:
-                return '멋짐';
-            case 20252323:
-                return '유어스핏';
-            case 20252424:
-                return '바이젝';
-            default:
-                return `기기 ${machineId}`;
-        }
+        const store = storeList.find(s => s.store_code === String(machineId));
+        return store?.store_name || `기기 ${machineId}`;
     };
 
     // 매장명을 기기 ID로 매핑하여 설정
@@ -179,7 +172,6 @@ const ErrorLogPage = () => {
                             <tr>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">시간</th>
-                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">기기 ID</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">매장명</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">에러 상세</th>
                             </tr>
@@ -194,9 +186,6 @@ const ErrorLogPage = () => {
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                         {formatTimestamp(log.timestamp)}
-                                    </td>
-                                    <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
-                                        {log.machine_id}
                                     </td>
                                     <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                         {getStoreNameByMachineId(log.machine_id)}

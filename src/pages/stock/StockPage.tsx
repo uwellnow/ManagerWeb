@@ -105,12 +105,31 @@ const StockPage = () => {
         }
     }, [storeName]);
 
-    // 매장 목록 추출 (중앙창고 먼저)
+    // 매장 목록 추출 및 최근 충전일시 순으로 정렬
     const storeSet = Array.from(new Set(stocks.map(stock => stock.storeName)));
-    // storeName이 있으면 해당 매장만, 없으면 모든 매장
+    
+    // 각 매장별로 가장 최근 충전 시간 계산
+    const storeLastRestockTimes = storeSet.map(store => {
+        // 해당 매장의 가장 최근 로그 찾기 (change_amount 조건 없이)
+        const latestLog = stockLogs
+            .filter(log => log.store_name === store)
+            .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())[0];
+        
+        return {
+            storeName: store,
+            lastRestockTime: latestLog ? new Date(latestLog.logged_at).getTime() : 0
+        };
+    });
+    
+    // 최근 충전 시간 내림차순으로 정렬 (최근일수록 앞에)
+    const sortedStores = storeLastRestockTimes
+        .sort((a, b) => b.lastRestockTime - a.lastRestockTime)
+        .map(item => item.storeName);
+    
+    // storeName이 있으면 해당 매장만, 없으면 중앙창고 먼저, 그 다음 최근 충전일시 순으로 정렬된 매장들
     const availableStores = storeName 
         ? [storeName] // 매장 관리자는 자신의 매장만
-        : ["중앙창고", ...storeSet]; // 전체 관리자는 모든 매장
+        : ["중앙창고", ...sortedStores]; // 전체 관리자는 중앙창고 먼저, 그 다음 최근 충전일시 순
     const stores = availableStores;
     
     // 로그 매장 목록 추출 (중앙창고 먼저)

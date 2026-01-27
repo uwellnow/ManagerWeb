@@ -792,7 +792,8 @@ const CustomerPage = () => {
                 </div>
             )}
 
-            {/* 환불 로그 섹션 */}
+            {/* 환불 로그 섹션 - 전체 관리자만 표시 */}
+            {!storeName && (
             <div className="mt-8 sm:mt-12">
                 <div className="mb-4 sm:mb-6">
                     <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">환불 로그 ({refunds.length})</h2>
@@ -862,6 +863,7 @@ const CustomerPage = () => {
                     </div>
                 )}
             </div>
+            )}
 
             {/* 환불 모달 */}
             {isRefundModalOpen && selectedMember && (

@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { systemStatusApi } from "../../api/systemStatus";
+import { storesApi } from "../../api/stores";
 import type { SystemStatus } from "../../types/DTO/SystemStatusResponseDto";
+import type { StoreData } from "../../types/DTO/StoreResponseDto";
 
 const MaintenancePage = () => {
     const { isAuthenticated, storeName } = useAuth();
     const navigate = useNavigate();
     const [systemStatuses, setSystemStatuses] = useState<SystemStatus[]>([]);
+    const [stores, setStores] = useState<StoreData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
     const [updatingId, setUpdatingId] = useState<number | null>(null);
@@ -19,40 +22,41 @@ const MaintenancePage = () => {
     }, [isAuthenticated, navigate]);
 
     useEffect(() => {
-        const fetchSystemStatuses = async () => {
+        const fetchData = async () => {
             if (!isAuthenticated) return;
             
             try {
                 setIsLoading(true);
                 setIsError(false);
-                const data = await systemStatusApi.getSystemStatuses();
+                
+                // 매장 정보와 시스템 상태를 병렬로 가져오기
+                const [storesData, systemStatusesData] = await Promise.all([
+                    storesApi.getStores(),
+                    systemStatusApi.getSystemStatuses()
+                ]);
+                
+                setStores(storesData);
                 
                 // API 응답이 배열이거나 객체일 수 있음
-                const statuses = Array.isArray(data) ? data : (data.statuses || []);
+                const statuses = Array.isArray(systemStatusesData) 
+                    ? systemStatusesData 
+                    : ((systemStatusesData as any).statuses || []);
                 setSystemStatuses(statuses);
             } catch (error) {
-                console.error('Failed to fetch system statuses:', error);
+                console.error('Failed to fetch data:', error);
                 setIsError(true);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchSystemStatuses();
+        fetchData();
     }, [isAuthenticated]);
 
-    // API Key를 매장명으로 변환
+    // API Key를 매장명으로 변환 (store_code를 사용)
     const getStoreNameByApiKey = (apiKey: string): string => {
-        const storeMap: Record<string, string> = {
-            '20250000': '테스트',
-            '20252354': '인트로피트니스',
-            '20258575': '멋짐',
-            '20255621': '세계대학조정대회',
-            '20259764': '머슬비치',
-            '20252323': '유어스핏',
-            '20252424': '바이젝',
-        };
-        return storeMap[apiKey] || apiKey;
+        const store = stores.find(s => s.store_code === apiKey);
+        return store?.store_name || apiKey;
     };
 
     // 상태 타입을 한글로 변환

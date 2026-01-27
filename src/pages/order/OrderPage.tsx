@@ -85,12 +85,32 @@ const OrderPage = () => {
         fetchOrders();
     }, [isAuthenticated, dateRange, selectedStore]);
 
-    // 매장 목록
-    // 매장 관리자는 전체 주문과 오늘의 전체 주문만 표시 (백엔드에서 이미 필터링됨)
-    // 전체 관리자는 모든 매장명도 포함
+    // 매장 목록 추출 및 최신 주문 시간 순으로 정렬
+    const storeSet = Array.from(new Set(allOrders.map(order => order.store_name)));
+    
+    // 각 매장별로 가장 최근 주문 시간 계산
+    const storeLastOrderTimes = storeSet.map(store => {
+        // 해당 매장의 가장 최근 주문 찾기
+        const latestOrder = allOrders
+            .filter(order => order.store_name === store)
+            .sort((a, b) => new Date(b.order_time).getTime() - new Date(a.order_time).getTime())[0];
+        
+        return {
+            storeName: store,
+            lastOrderTime: latestOrder ? new Date(latestOrder.order_time).getTime() : 0
+        };
+    });
+    
+    // 최신 주문 시간 내림차순으로 정렬 (최신일수록 앞에)
+    const sortedStores = storeLastOrderTimes
+        .sort((a, b) => b.lastOrderTime - a.lastOrderTime)
+        .map(item => item.storeName);
+    
+    // 매장 관리자는 전체 주문과 오늘의 전체 주문만 표시
+    // 전체 관리자는 모든 전체 주문, 오늘의 전체 주문 먼저, 그 다음 최신 주문 시간 순으로 정렬된 매장들
     const stores = storeName 
         ? ["모든 전체 주문", "오늘의 전체 주문"]
-        : ["모든 전체 주문", "오늘의 전체 주문", ...Array.from(new Set(allOrders.map(order => order.store_name)))];
+        : ["모든 전체 주문", "오늘의 전체 주문", ...sortedStores];
 
     // 회원 구분 결정 함수 - CustomerPage의 getMemberType 로직 복사
     const getMemberType = (member: Member): string => {
