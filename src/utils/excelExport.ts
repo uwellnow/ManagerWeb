@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import type { OrderData } from '../types/DTO/OrderResponseDto';
 import type { Member } from '../types/DTO/MemberResponseDto';
+import type { SurveyResponseDto } from '../types/DTO/SurveyResponseDto';
 
 // 주문 데이터를 CSV 형식으로 변환하는 함수
 export const exportOrdersToExcel = (orders: OrderData[], selectedStore: string) => {
@@ -213,4 +214,81 @@ const getFirstPurchaseDate = (member: Member): string => {
     const day = String(date.getDate()).padStart(2, '0');
     
     return `${year}.${month}.${day}`;
+};
+
+// 설문 응답 데이터를 CSV 형식으로 변환하는 함수
+export const exportSurveysToExcel = (
+    surveys: SurveyResponseDto,
+    filters?: {
+        selectedStore?: string;
+        selectedGender?: string;
+        storeName?: string | null;
+    }
+) => {
+    // 질문 3 답변 포맷팅 함수
+    const formatRecommendationAnswer = (answer: string): string => {
+        const score = parseInt(answer);
+        if (!isNaN(score) && score >= 1 && score <= 5) {
+            return `${score}점`;
+        }
+        return answer;
+    };
+
+    // CSV에 들어갈 데이터 준비
+    const csvData = surveys.map((survey, index) => {
+        const question1 = survey.answers.find(a => a.question === 1);
+        const question2 = survey.answers.find(a => a.question === 2);
+        const question3 = survey.answers.find(a => a.question === 3);
+
+        return {
+            '번호': index + 1,
+            '멤버십 코드': survey.userCode || '비회원',
+            '회원명': survey.member?.name || '-',
+            '등록 매장': survey.member?.registrantStore || '-',
+            '성별': survey.member?.gender === 'M' ? '남성' : survey.member?.gender === 'F' ? '여성' : '-',
+            '생년월일': survey.member?.birth || '-',
+            '직업': question1?.answer || '-',
+            '운동 목표': question2?.answer || '-',
+            '추천 의향': question3 ? formatRecommendationAnswer(question3.answer) : '-'
+        };
+    });
+
+    // CSV 변환
+    const worksheet = XLSX.utils.json_to_sheet(csvData);
+    const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+    
+    // UTF-8 BOM 추가 (Excel에서 한글 정상 표시)
+    const BOM = '\uFEFF';
+    const csvWithBOM = BOM + csvContent;
+
+    // 파일명 생성
+    const currentDate = new Date().toISOString().split('T')[0];
+    let fileName = '설문응답';
+    
+    // 필터 정보 추가
+    if (filters) {
+        const filterParts: string[] = [];
+        
+        // 매장 필터
+        if (filters.selectedStore && filters.selectedStore !== '전체') {
+            filterParts.push(filters.selectedStore);
+        } else if (filters.storeName) {
+            filterParts.push(filters.storeName);
+        }
+        
+        // 성별 필터
+        if (filters.selectedGender && filters.selectedGender !== '전체') {
+            filterParts.push(filters.selectedGender);
+        }
+        
+        if (filterParts.length > 0) {
+            fileName += '_' + filterParts.join('_');
+        }
+    }
+    
+    fileName += `_${currentDate}.csv`;
+
+    // CSV 파일 생성 및 다운로드
+    const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, fileName);
 };

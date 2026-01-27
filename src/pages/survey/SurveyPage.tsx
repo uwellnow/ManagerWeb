@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { surveysApi } from "../../api/surveys";
+import { exportSurveysToExcel } from "../../utils/excelExport";
 import type { SurveyResponse, SurveyResponseDto } from "../../types/DTO/SurveyResponseDto";
 
 const SurveyPage = () => {
@@ -150,6 +151,15 @@ const SurveyPage = () => {
         setSelectedSurvey(null);
     };
 
+    // 엑셀 다운로드 핸들러
+    const handleExcelDownload = () => {
+        exportSurveysToExcel(filteredSurveys, {
+            selectedStore,
+            selectedGender,
+            storeName
+        });
+    };
+
     if (!isAuthenticated) {
         return (
             <div className="flex items-center justify-center min-h-screen">
@@ -183,10 +193,17 @@ const SurveyPage = () => {
     return (
         <div className="flex-1 p-3 sm:p-4 lg:p-6">
             {/* 헤더 */}
-            <div className="mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3">
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
                     설문 응답 ({filteredSurveys.length})
                 </h2>
+                {/* 엑셀 다운로드 버튼 */}
+                <button 
+                    onClick={handleExcelDownload}
+                    className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-lg sm:rounded-xl hover:bg-red-50 hover:border-red-300 transition-colors text-sm sm:text-base lg:text-lg font-medium shadow-sm self-start sm:self-auto"
+                >
+                    엑셀 다운로드
+                </button>
             </div>
 
             {/* 통계 카드 */}
