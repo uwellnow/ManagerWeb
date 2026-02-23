@@ -188,12 +188,15 @@ const getPaymentDate = (member: Member): string => {
 const getUsageStatus = (member: Member): string => {
     if (member.memberships.length === 0) return "-";
     
-    // id가 가장 높은 멤버십 찾기
     const latestMembership = member.memberships.reduce((prev, current) => 
         (current.id > prev.id) ? current : prev
     );
-    
-    return `${latestMembership.total_count - latestMembership.remain_count}/${latestMembership.total_count}`;
+    const total = latestMembership.total_count;
+    if (total == null || total <= 0) {
+        const used = (latestMembership as { used_count?: number }).used_count ?? 0;
+        return `${used}잔/무제한`;
+    }
+    return `${total - latestMembership.remain_count}/${total}`;
 };
 
 // 멤버십 첫 구매 날짜 (id가 가장 낮은 멤버십의 created_at)
