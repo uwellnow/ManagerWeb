@@ -22,21 +22,25 @@ export const membersApi = {
     return apiClient.get<RefundsResponseDto>('/member/refunds');
   },
 
-  // 회원 등록
-  registerMember: async (memberData: {
+  // 수동 회원 등록 (신규 회원 + 구독권 1개)
+  registerMemberSubscription: async (data: {
     phone: string;
     name: string;
-    registrant_name: string;
-    member_type: string;
-    birth: string;
-    gender: string;
-    registration_date: string;
-    barcode: string;
-    membership_name: string;
-    total_count: number;
-    remain_count: number;
-  }): Promise<void> => {
-    return apiClient.post('/users/membership', memberData);
+    plan: 'starter' | 'daily_1month' | 'daily_3month' | 'pro_1month' | 'pro_3month';
+    registrant_name?: string;
+    member_type?: string;
+    birth?: string;
+    gender?: string;
+  }): Promise<{ member: unknown; membership: { barcode: string; [key: string]: unknown } }> => {
+    return apiClient.post('/users/membership/subscription', data);
+  },
+
+  // 기존 회원에게 멤버십 추가
+  addMembershipForMember: async (
+    memberId: number,
+    plan: 'starter' | 'daily_1month' | 'daily_3month' | 'pro_1month' | 'pro_3month'
+  ): Promise<{ member: unknown; membership: { barcode: string; [key: string]: unknown } }> => {
+    return apiClient.post(`/users/${memberId}/memberships`, { plan });
   },
 
   // 회원 동기화

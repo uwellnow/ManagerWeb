@@ -2,8 +2,10 @@ export interface Membership {
   id: number;
   barcode: string;
   name: string;
+  /** 서버에서 오는 플랜/권종명 (예: "Starter (1개월)", "20잔권") */
+  membership_name?: string;
   remain_count: number;
-  total_count: number;
+  total_count: number | null;
   created_at?: string;
   expired_at?: string;
 }
