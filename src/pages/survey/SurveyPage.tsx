@@ -89,27 +89,38 @@ const SurveyPage = () => {
         setCurrentPage(1); // 필터 변경 시 첫 페이지로
     }, [surveys, selectedStore, selectedGender, storeName]);
 
-    // 질문 텍스트 매핑
+    // 질문 텍스트 매핑 (v2 설문 10문항)
+    const SURVEY_QUESTION_TITLES: Record<number, string> = {
+        1: "직업은 무엇인가요?",
+        2: "운동을 하는 목표는 무엇인가요?",
+        3: "PT 회원이신가요?",
+        4: "건강 목표는 무엇인가요?(최대 3개)",
+        5: "기능성 제품(영양제/보충제)은 얼마나 자주 섭취하시나요?",
+        6: "기능성 제품(영양제/보충제) 섭취 시 가장 어려운 점은 무엇인가요?",
+        7: "오늘 유웰나우를 이용하게 된 가장 큰 이유는 무엇인가요?",
+        8: "유웰나우가 없었다면, 어떤 걸 선택하실 예정인가요?",
+        9: "평소 운동 전후로 어떤 걸 섭취하고 계신가요?",
+        10: "기능성 제품(영양제/보충제), 선택 기준은 무엇인가요?",
+    };
     const getQuestionText = (questionNumber: number): string => {
-        switch (questionNumber) {
-            case 1:
-                return "당신의 직업은 무엇인가요?";
-            case 2:
-                return "운동을 하는 목표는 무엇인가요?";
-            case 3:
-                return "유웰나우를 주변 분께 추천할 의향이 있으신가요?";
-            default:
-                return `질문 ${questionNumber}`;
-        }
+        return SURVEY_QUESTION_TITLES[questionNumber] ?? `질문 ${questionNumber}`;
     };
 
-    // 질문 3 답변 포맷팅 (1-5점)
-    const formatRecommendationAnswer = (answer: string): string => {
-        const score = parseInt(answer);
-        if (!isNaN(score) && score >= 1 && score <= 5) {
-            return `${score}점`;
+    // 설문 일시 포맷 (ISO 8601 → YYYY.MM.DD HH:mm)
+    const formatSurveyCreatedAt = (isoString: string | null | undefined): string => {
+        if (!isoString) return "-";
+        try {
+            const d = new Date(isoString);
+            if (isNaN(d.getTime())) return "-";
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            const h = String(d.getHours()).padStart(2, "0");
+            const min = String(d.getMinutes()).padStart(2, "0");
+            return `${y}.${m}.${day} ${h}:${min}`;
+        } catch {
+            return "-";
         }
-        return answer;
     };
 
     // 페이지네이션
@@ -122,22 +133,6 @@ const SurveyPage = () => {
     const totalCount = filteredSurveys.length;
     const memberCount = filteredSurveys.filter(s => s.member !== null).length;
     const nonMemberCount = totalCount - memberCount;
-    
-    // 평균 추천 점수 계산
-    const recommendationScores = filteredSurveys
-        .map(survey => {
-            const answer = survey.answers.find(a => a.question === 3);
-            if (answer) {
-                const score = parseInt(answer.answer);
-                return !isNaN(score) && score >= 1 && score <= 5 ? score : null;
-            }
-            return null;
-        })
-        .filter((score): score is number => score !== null);
-    
-    const avgRecommendationScore = recommendationScores.length > 0
-        ? (recommendationScores.reduce((sum, score) => sum + score, 0) / recommendationScores.length).toFixed(1)
-        : "0.0";
 
     // 모달 열기
     const handleRowClick = (survey: SurveyResponse) => {
@@ -207,7 +202,7 @@ const SurveyPage = () => {
             </div>
 
             {/* 통계 카드 */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div className="bg-white rounded-lg sm:rounded-xl p-4 shadow-sm">
                     <div className="text-xs sm:text-sm text-gray-500 mb-1">전체 응답 수</div>
                     <div className="text-xl sm:text-2xl font-bold text-gray-900">{totalCount}</div>
@@ -215,10 +210,6 @@ const SurveyPage = () => {
                 <div className="bg-white rounded-lg sm:rounded-xl p-4 shadow-sm">
                     <div className="text-xs sm:text-sm text-gray-500 mb-1">회원 / 비회원</div>
                     <div className="text-xl sm:text-2xl font-bold text-gray-900">{memberCount} / {nonMemberCount}</div>
-                </div>
-                <div className="bg-white rounded-lg sm:rounded-xl p-4 shadow-sm">
-                    <div className="text-xs sm:text-sm text-gray-500 mb-1">평균 추천 점수</div>
-                    <div className="text-xl sm:text-2xl font-bold text-gray-900">{avgRecommendationScore}점</div>
                 </div>
             </div>
 
@@ -268,7 +259,7 @@ const SurveyPage = () => {
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">등록 매장</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">직업</th>
                                 <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">운동 목표</th>
-                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">추천 의향</th>
+                                <th className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">설문 일시</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -282,8 +273,6 @@ const SurveyPage = () => {
                                 currentSurveys.map((survey, index) => {
                                     const question1 = survey.answers.find(a => a.question === 1);
                                     const question2 = survey.answers.find(a => a.question === 2);
-                                    const question3 = survey.answers.find(a => a.question === 3);
-                                    
                                     return (
                                         <tr
                                             key={index}
@@ -305,8 +294,8 @@ const SurveyPage = () => {
                                             <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
                                                 {question2?.answer || "-"}
                                             </td>
-                                            <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900">
-                                                {question3 ? formatRecommendationAnswer(question3.answer) : "-"}
+                                            <td className="px-2 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base text-gray-900 whitespace-nowrap">
+                                                {formatSurveyCreatedAt(survey.created_at ?? survey.createdAt)}
                                             </td>
                                         </tr>
                                     );
@@ -452,27 +441,23 @@ const SurveyPage = () => {
                                 </div>
                             </div>
 
-                            {/* 설문 응답 섹션 */}
+                            {/* 설문 응답 섹션 (질문 1~10 순서로 표시) */}
                             <div>
                                 <h4 className="text-sm sm:text-base font-semibold text-gray-700 mb-3">설문 응답</h4>
                                 <div className="space-y-3 sm:space-y-4">
-                                    {selectedSurvey.answers.map((answer, index) => (
-                                        <div key={index}>
-                                            <label className="block text-xs sm:text-sm font-medium text-gray-500 mb-1">
-                                                {getQuestionText(answer.question)}
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={
-                                                    answer.question === 3
-                                                        ? formatRecommendationAnswer(answer.answer)
-                                                        : answer.answer
-                                                }
-                                                disabled
-                                                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-gray-50 text-gray-900 text-sm sm:text-base"
-                                            />
-                                        </div>
-                                    ))}
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((qNum) => {
+                                        const answer = selectedSurvey.answers.find(a => a.question === qNum);
+                                        return (
+                                            <div key={qNum} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                                                <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">
+                                                    {qNum}. {getQuestionText(qNum)}
+                                                </div>
+                                                <div className="text-sm sm:text-base text-gray-900 bg-gray-50 rounded-lg px-3 py-2 sm:py-2.5">
+                                                    {answer?.answer ?? "-"}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

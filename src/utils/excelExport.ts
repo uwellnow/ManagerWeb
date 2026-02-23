@@ -228,32 +228,46 @@ export const exportSurveysToExcel = (
         storeName?: string | null;
     }
 ) => {
-    // 질문 3 답변 포맷팅 함수
-    const formatRecommendationAnswer = (answer: string): string => {
-        const score = parseInt(answer);
-        if (!isNaN(score) && score >= 1 && score <= 5) {
-            return `${score}점`;
-        }
-        return answer;
+    // v2 설문 질문 라벨 (엑셀 컬럼명)
+    const questionLabels: Record<number, string> = {
+        1: '직업',
+        2: '운동 목표',
+        3: 'PT 회원 여부',
+        4: '건강 목표',
+        5: '기능성 제품 섭취 빈도',
+        6: '기능성 제품 섭취 시 어려운 점',
+        7: '유웰나우 이용 이유',
+        8: '유웰나우 없었다면 선택',
+        9: '운동 전후 섭취',
+        10: '기능성 제품 선택 기준',
     };
 
-    // CSV에 들어갈 데이터 준비
-    const csvData = surveys.map((survey, index) => {
-        const question1 = survey.answers.find(a => a.question === 1);
-        const question2 = survey.answers.find(a => a.question === 2);
-        const question3 = survey.answers.find(a => a.question === 3);
+    const formatCreatedAt = (isoString: string | null | undefined): string => {
+        if (!isoString) return '-';
+        try {
+            const d = new Date(isoString);
+            if (isNaN(d.getTime())) return '-';
+            return d.toISOString().slice(0, 19).replace('T', ' ');
+        } catch {
+            return '-';
+        }
+    };
 
-        return {
+    const csvData = surveys.map((survey, index) => {
+        const row: Record<string, string | number> = {
             '번호': index + 1,
             '멤버십 코드': survey.userCode || '비회원',
             '회원명': survey.member?.name || '-',
             '등록 매장': survey.member?.registrantStore || '-',
             '성별': survey.member?.gender === 'M' ? '남성' : survey.member?.gender === 'F' ? '여성' : '-',
             '생년월일': survey.member?.birth || '-',
-            '직업': question1?.answer || '-',
-            '운동 목표': question2?.answer || '-',
-            '추천 의향': question3 ? formatRecommendationAnswer(question3.answer) : '-'
+            '설문 일시': formatCreatedAt(survey.created_at ?? survey.createdAt),
         };
+        for (let q = 1; q <= 10; q++) {
+            const answer = survey.answers.find(a => a.question === q);
+            row[questionLabels[q] ?? `질문${q}`] = answer?.answer ?? '-';
+        }
+        return row;
     });
 
     // CSV 변환
