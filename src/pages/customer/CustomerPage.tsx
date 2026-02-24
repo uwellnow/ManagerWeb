@@ -78,23 +78,12 @@ const CustomerPage = () => {
             try {
                 setIsLoading(true);
                 setIsError(false);
-                
-                // 먼저 회원 동기화 API 호출 (500 에러 시 테스트용 비활성화)
-                await membersApi.syncMembers();
-                
-                // 그 다음 회원 데이터 조회
                 const data = await membersApi.getMembers();
-                // 전체 회원 데이터 저장 (필터링 없이) - 타입 단언 사용
-                let sortedAllMembers = (data.members as Member[]).sort((a, b) => b.id - a.id);
-                
-                // 매장 관리자인 경우 해당 매장에 등록된 회원만 필터링
+                let sortedAllMembers = (data.members as Member[]) || [];
                 if (storeName) {
                     sortedAllMembers = sortedAllMembers.filter(member => member.registrant_store === storeName);
                 }
-                
                 setAllMembers(sortedAllMembers);
-                
-                // 초기에는 전체 회원을 표시 (멤버십 여부 상관없이)
                 setMembers(sortedAllMembers);
             } catch (error) {
                 console.error('Failed to fetch members:', error);
@@ -363,24 +352,15 @@ const CustomerPage = () => {
             
             // 성공 시 모달 닫고 데이터 새로고침
             handleCloseRefundModal();
-            
-            // 데이터 새로고침 (동기화 후 데이터 조회)
-            await membersApi.syncMembers();
             const [membersData, refundsData] = await Promise.all([
                 membersApi.getMembers(),
                 membersApi.getRefunds()
             ]);
-            // 전체 회원 데이터 저장 - 타입 단언 사용
-            let sortedAllMembers = (membersData.members as Member[]).sort((a, b) => b.id - a.id);
-            
-            // 매장 관리자인 경우 해당 매장에 등록된 회원만 필터링
+            let sortedAllMembers = (membersData.members as Member[]) || [];
             if (storeName) {
                 sortedAllMembers = sortedAllMembers.filter(member => member.registrant_store === storeName);
             }
-            
             setAllMembers(sortedAllMembers);
-            
-            // 현재 선택된 필터에 따라 데이터 설정
             if (selectedMemberType === "전체 회원") {
                 setMembers(sortedAllMembers);
             } else {
@@ -388,7 +368,6 @@ const CustomerPage = () => {
                 setMembers(filteredData);
             }
             setRefunds(refundsData.refunds);
-            
             alert("환불이 완료되었습니다.");
         } catch (error) {
             console.error('Failed to refund:', error);
@@ -472,12 +451,11 @@ const CustomerPage = () => {
     };
 
     const refreshMembersAndRefunds = async () => {
-        await membersApi.syncMembers();
         const [membersData, refundsData] = await Promise.all([
             membersApi.getMembers(),
             membersApi.getRefunds()
         ]);
-        let sortedAllMembers = (membersData.members as Member[]).sort((a, b) => b.id - a.id);
+        let sortedAllMembers = (membersData.members as Member[]) || [];
         if (storeName) {
             sortedAllMembers = sortedAllMembers.filter(member => member.registrant_store === storeName);
         }

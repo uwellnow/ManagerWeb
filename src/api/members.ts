@@ -41,10 +41,5 @@ export const membersApi = {
     plan: 'starter' | 'daily_1month' | 'daily_3month' | 'pro_1month' | 'pro_3month'
   ): Promise<{ member: unknown; membership: { barcode: string; [key: string]: unknown } }> => {
     return apiClient.post(`/users/${memberId}/memberships`, { plan });
-  },
-
-  // 회원 동기화
-  syncMembers: async (): Promise<void> => {
-    return apiClient.post('/members/sync');
   }
 };
