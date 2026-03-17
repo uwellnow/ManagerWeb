@@ -54,7 +54,7 @@ const CustomerPage = () => {
     // 기존 회원 멤버십 등록 모달 상태
     const [isAddMembershipModalOpen, setIsAddMembershipModalOpen] = useState(false);
     const [addMembershipMember, setAddMembershipMember] = useState<Member | null>(null);
-    const [addMembershipPlan, setAddMembershipPlan] = useState<MembershipPlanId>('한잔권 1잔');
+    const [addMembershipPlan, setAddMembershipPlan] = useState<MembershipPlanId>('1잔권');
     const [isAddMembershipSubmitting, setIsAddMembershipSubmitting] = useState(false);
 
     // 멤버십 리스트 모달 (행 클릭 시)

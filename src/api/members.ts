@@ -26,7 +26,7 @@ export const membersApi = {
   registerMemberSubscription: async (data: {
     phone: string;
     name: string;
-    plan: '1잔권' | '5잔권' | '무제한';
+    plan: '1잔권' | '5잔권' | '무제한 구독권';
     registrant_name?: string;
     member_type?: string;
     birth?: string;
