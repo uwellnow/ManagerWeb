@@ -8,6 +8,15 @@ import { membersApi } from "../../api/members";
 import type { Member, Membership, RefundLog } from "../../types/DTO/MemberResponseDto";
 import { exportMembersToExcel } from "../../utils/excelExport";
 
+// 멤버십 상품 리스트 (1잔권 / 5잔권 / 무제한) - 신규·기존 회원 공통
+const MEMBERSHIP_PRODUCTS = [
+    { id: '1잔권', label: '1잔권 (3,500원, 유효기간 30일)', totalCount: 1 },
+    { id: '5잔권', label: '5잔권 (15,000원, 유효기간 30일)', totalCount: 5 },
+    { id: '무제한 구독권', label: '무제한 구독권 (39,900원, 유효기간 30일)', totalCount: 0 },
+] as const;
+
+type MembershipPlanId = (typeof MEMBERSHIP_PRODUCTS)[number]['id'];
+
 const CustomerPage = () => {
     const { isAuthenticated, storeName } = useAuth();
     const { selectedDate } = useDate(); // Header의 날짜 선택 사용
@@ -30,15 +39,6 @@ const CustomerPage = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [onlyMembershipMembers, setOnlyMembershipMembers] = useState(false);
     
-    // 구독권 플랜 옵션 (수동 등록 / 기존 회원 멤버십 등록 공통)
-    const SUBSCRIPTION_PLANS = [
-        { value: 'starter' as const, label: '스타터 Starter 1개월 - 11,900원' },
-        { value: 'daily_1month' as const, label: '데일리 Daily 1개월 - 29,900원' },
-        { value: 'daily_3month' as const, label: '데일리 Daily 3개월 - 59,700원' },
-        { value: 'pro_1month' as const, label: '프로 Pro 1개월 - 99,000원' },
-        { value: 'pro_3month' as const, label: '프로 Pro 3개월 - 207,000원' },
-    ] as const;
-
     // 회원 등록 모달 상태
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
     const [registerForm, setRegisterForm] = useState({
@@ -47,14 +47,14 @@ const CustomerPage = () => {
         gender: '',
         birth: '',
         phone: '',
-        plan: '' as '' | 'starter' | 'daily_1month' | 'daily_3month' | 'pro_1month' | 'pro_3month'
+        plan: '' as '' | MembershipPlanId
     });
     const [isRegisterSubmitting, setIsRegisterSubmitting] = useState(false);
 
     // 기존 회원 멤버십 등록 모달 상태
     const [isAddMembershipModalOpen, setIsAddMembershipModalOpen] = useState(false);
     const [addMembershipMember, setAddMembershipMember] = useState<Member | null>(null);
-    const [addMembershipPlan, setAddMembershipPlan] = useState<'starter' | 'daily_1month' | 'daily_3month' | 'pro_1month' | 'pro_3month'>('starter');
+    const [addMembershipPlan, setAddMembershipPlan] = useState<MembershipPlanId>('한잔권 1잔');
     const [isAddMembershipSubmitting, setIsAddMembershipSubmitting] = useState(false);
 
     // 멤버십 리스트 모달 (행 클릭 시)
@@ -404,14 +404,14 @@ const CustomerPage = () => {
 
     const handleAddMembershipClick = (member: Member) => {
         setAddMembershipMember(member);
-        setAddMembershipPlan('starter');
+        setAddMembershipPlan('1잔권');
         setIsAddMembershipModalOpen(true);
     };
 
     const handleCloseAddMembershipModal = () => {
         setIsAddMembershipModalOpen(false);
         setAddMembershipMember(null);
-        setAddMembershipPlan('starter');
+        setAddMembershipPlan('1잔권');
     };
 
     const handleMembershipListClick = (member: Member) => {
@@ -495,7 +495,7 @@ const CustomerPage = () => {
             return;
         }
         if (!registerForm.plan) {
-            alert("구독권을 선택해주세요.");
+            alert("멤버십 상품을 선택해주세요.");
             return;
         }
 
@@ -1069,15 +1069,15 @@ const CustomerPage = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">구독권 선택 *</label>
+                                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">멤버십 상품 *</label>
                                     <select
                                         value={registerForm.plan}
                                         onChange={(e) => setRegisterForm(prev => ({ ...prev, plan: e.target.value as typeof prev.plan }))}
                                         className="w-full pl-3 sm:pl-4 pr-12 sm:pr-16 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
                                     >
-                                        <option value="">구독권을 선택하세요</option>
-                                        {SUBSCRIPTION_PLANS.map((p) => (
-                                            <option key={p.value} value={p.value}>{p.label}</option>
+                                        <option value="">멤버십 상품을 선택하세요</option>
+                                        {MEMBERSHIP_PRODUCTS.map((p) => (
+                                            <option key={p.id} value={p.id}>{p.label}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1116,14 +1116,14 @@ const CustomerPage = () => {
                             <span className="font-medium text-gray-900">{addMembershipMember.name}</span> 회원에게 구독권을 등록합니다.
                         </p>
                         <div className="mb-4">
-                            <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">구독권 선택 *</label>
+                            <label className="block text-sm sm:text-base font-medium text-gray-700 mb-1 sm:mb-2">멤버십 상품 선택 *</label>
                             <select
                                 value={addMembershipPlan}
-                                onChange={(e) => setAddMembershipPlan(e.target.value as typeof addMembershipPlan)}
+                                onChange={(e) => setAddMembershipPlan(e.target.value as MembershipPlanId)}
                                 className="w-full pl-3 sm:pl-4 pr-12 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl bg-white text-gray-900 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-mainRed focus:border-transparent"
                             >
-                                {SUBSCRIPTION_PLANS.map((p) => (
-                                    <option key={p.value} value={p.value}>{p.label}</option>
+                                {MEMBERSHIP_PRODUCTS.map((p) => (
+                                    <option key={p.id} value={p.id}>{p.label}</option>
                                 ))}
                             </select>
                         </div>
